@@ -1,0 +1,215 @@
+{"level":"error","message":"[vite] failed to connect to websocket.\nyour current setup:\n  (browser) iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/ <--[HTTP]--> localhost:5173/ (server)\n  (browser) iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io:/ <--[WebSocket (failing)]--> localhost:5173/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr .","timestamp":1792135412750}
+{"level":"error","message":"[vite] failed to connect to websocket.\nyour current setup:\n  (browser) iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/ <--[HTTP]--> localhost:5173/ (server)\n  (browser) iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io:/ <--[WebSocket (failing)]--> localhost:5173/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr .","timestamp":1792151413611}
+{"level":"error","message":"Unhandled promise rejection: {\"message\":\"User Rejected the Request\",\"name\":\"Error\",\"code\":4001}","timestamp":1792153729652}
+{"level":"error","message":"[vite] failed to connect to websocket.\nyour current setup:\n  (browser) iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/ <--[HTTP]--> localhost:5173/ (server)\n  (browser) iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io:/ <--[WebSocket (failing)]--> localhost:5173/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr .","timestamp":1792155153806}
+{"level":"error","message":"[vite] failed to connect to websocket.\nyour current setup:\n  (browser) iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/ <--[HTTP]--> localhost:5173/ (server)\n  (browser) iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io:/ <--[WebSocket (failing)]--> localhost:5173/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr .","timestamp":1792158247643}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792176307603}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792176413861}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792176426492}
+{"level":"debug","message":"[vite] connected.","timestamp":1792245341877}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246194565}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246194566}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246195907}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246195907}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792246326676}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246326677}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792246326678}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246326678}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246396378}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246396378}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246399043}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246399044}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246451282}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246451282}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246470856}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246470856}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246498558}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246498558}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246500275}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246500275}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246550194}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246550195}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246553248}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246553248}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246623497}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246623497}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246623498}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246623498}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246823846}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246823847}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246824045}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246824045}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246885120}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246885120}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246927401}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246927401}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792246927403}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246927403}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792246984712}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246984712}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792246984713}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792246984713}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792247035078}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247035079}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792247035865}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247035865}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792247101917}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247101917}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792247101919}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247101919}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792247132098}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247132098}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792247132099}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247132099}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792247182124}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247182124}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792247182125}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247182125}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792247433552}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247433552}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792247482971}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247482971}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792247530895}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792247530895}
+{"level":"debug","message":"[vite] connected.","timestamp":1792254819788}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792254850602}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792256971823}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792259315480}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259315481}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792259363663}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259363663}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792259415470}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259415470}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792259489684}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259489684}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1792259489684}
+{"level":"debug","message":"[vite] hot updated: /src/components/ABDemo.tsx","timestamp":1792259489685}
+{"level":"debug","message":"[vite] hot updated: /src/components/RequestCard.tsx","timestamp":1792259489685}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792259489685}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792259489685}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792259489685}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792259522929}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259522929}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792259572739}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259572739}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792259620145}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259620145}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792259678816}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259678817}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792259728002}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259728002}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792259800420}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259800421}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792259883716}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259883716}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792259930117}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259930118}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792259980485}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792259980485}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792263422346}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792263422346}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792263476833}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792263476833}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792263526030}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792263526030}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792263575867}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792263575867}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792263628020}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792263628020}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792263676203}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792263676203}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792263729089}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792263729089}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792264872319}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792264872319}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792265015151}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265015151}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792265015491}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265015492}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792265064628}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265064628}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792265064628}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265064628}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792265113123}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265113123}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792265113125}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265113125}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1792265161259}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265161259}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1792265161261}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265161261}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1792265215293}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265215294}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1792265215295}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265215295}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792265269097}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265269097}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792265269098}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265269098}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792265318474}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265318474}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792265318475}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265318475}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265371252}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792265371606}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792265371606}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792265446153}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792265446155}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792265454694}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792267244735}
+{"level":"error","message":"Warning: You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.","timestamp":1792267493513}
+{"level":"debug","message":"[vite] invalidate /src/main.tsx: Could not Fast Refresh (\"true\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792267493514}
+{"level":"debug","message":"[vite] hot updated: /src/main.tsx","timestamp":1792267493514}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267493514}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792267531644}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792267531644}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267531644}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792267531646}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267531646}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792267585475}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267585475}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792267639888}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267639888}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792267639889}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267639889}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792267693448}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267693448}
+{"level":"debug","message":"[vite] hot updated: /src/components/ArcReceiptApp.tsx","timestamp":1792267693449}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267693449}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792267748968}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267748969}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792267748971}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267748971}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792267820744}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267820744}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792267820745}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267820745}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792267925852}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267925852}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792267926398}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792267926398}
+{"level":"debug","message":"[vite] connected.","timestamp":1792267969440}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792269366575}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792269366584}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792300682787}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792300682788}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792300696107}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792300696107}
+{"level":"error","message":"Warning: You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.","timestamp":1792300709304}
+{"level":"debug","message":"[vite] invalidate /src/main.tsx: Could not Fast Refresh (\"true\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792300709312}
+{"level":"debug","message":"[vite] hot updated: /src/main.tsx","timestamp":1792300709313}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792300709313}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792300722563}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792300722563}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792300722563}
+{"level":"debug","message":"[vite] connected.","timestamp":1792300832101}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792301198617}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792301198617}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792301198617}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792301198618}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792301227072}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792301227072}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792301236994}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792301236994}
+{"level":"debug","message":"[vite] connected.","timestamp":1792301513995}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792303630466}

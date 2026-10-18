@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.bun/
+
+# Build output
+dist/
+contracts/out/
+contracts/cache/
+
+# Environment — NEVER commit secrets or API keys
+.env
+.env.local
+.env.*.local
+
+# Circle credentials — NEVER commit
+.circle/
+*recovery_file*
+*entity_secret*
+
+# Foundry
+broadcast/
+cache/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/settings.json
+
+# Logs
+*.log
+/tmp/
+ArcReceipt/
