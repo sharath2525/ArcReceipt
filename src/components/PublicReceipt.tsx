@@ -58,7 +58,10 @@ export function PublicReceipt({ requestId, payTxHash }: PublicReceiptProps) {
             <p className="text-sm font-semibold text-rose-700">
               Could not load receipt for request #{requestId.toString()}
             </p>
-            <p className="text-xs text-rose-600 mt-0.5">RPC error — check your connection.</p>
+            <p className="text-xs text-rose-600 mt-0.5">
+              Unable to reach Arc Testnet. Check your connection and try again.
+              Strict browser content-blocking (e.g. Brave Shields) may block the RPC providers.
+            </p>
           </div>
         </div>
         <button

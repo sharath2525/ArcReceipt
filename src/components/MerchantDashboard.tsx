@@ -302,7 +302,7 @@ interface RequestRowProps {
   onShowQr?: (id: bigint) => void
 }
 
-function RequestRow({ id, req, onCancel, cancellingId, cancelStatus, onShowQr }: RequestRowProps) {
+function RequestRow({ id, req, onCancel, cancellingId, cancelStatus, onShowQr: _onShowQr }: RequestRowProps) {
   const [expanded, setExpanded] = useState(false)
   const [copied, setCopied]     = useState(false)
   const [showQr, setShowQr]     = useState(false)
@@ -539,7 +539,7 @@ type StatusFilter = 'all' | 'open' | 'paid' | 'expired' | 'cancelled'
 
 export function MerchantDashboard({
   mode = 'sell',
-  onNavigateToOrder,
+  onNavigateToOrder: _onNavigateToOrder,
 }: {
   mode?: 'sell' | 'orders'
   /** Called when the user wants to view/share a specific order's QR. */

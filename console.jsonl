@@ -213,3 +213,137 @@
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792301236994}
 {"level":"debug","message":"[vite] connected.","timestamp":1792301513995}
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792303630466}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792329171753}
+{"level":"error","message":"Warning: You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.","timestamp":1792347364108}
+{"level":"error","message":"[vite] ReferenceError: App is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/main.tsx?t=1792347361483:94:28","timestamp":1792347364110,"stack":"ReferenceError: App is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/main.tsx?t=1792347361483:94:28"}
+{"level":"error","message":"[vite] Failed to reload /src/main.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792347364110}
+{"level":"debug","message":"[vite] hot updated: /src/main.tsx","timestamp":1792347364110}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792347364110}
+{"level":"error","message":"Warning: You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.","timestamp":1792347389481}
+{"level":"debug","message":"[vite] hot updated: /src/main.tsx","timestamp":1792347389483}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792347389483}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792347389483}
+{"level":"error","message":"Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.","timestamp":1792347389493}
+{"level":"error","message":"(previous line repeated 1× more)","timestamp":1792347389495}
+{"level":"error","message":"Uncaught TypeError: Cannot read properties of null (reading 'useRef')","timestamp":1792347389495,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-TWJ6NINL.js?v=c5f23c4e:1359:29","stack":"TypeError: Cannot read properties of null (reading 'useRef')\n    at Object.useRef (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-TWJ6NINL.js?v=c5f23c4e:1359:29)\n    at BrowserRouter (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/react-router-dom.js?v=75c14cb4:10984:28)\n    at renderWithHooks (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:18474:26)\n    at mountIndeterminateComponent (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:21852:21)\n    at beginWork (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:22840:22)\n    at HTMLUnknownElement.callCallback2 (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:10558:22)\n    at Object.invokeGuardedCallbackDev (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:10583:24)\n    at invokeGuardedCallback (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:10617:39)\n    at beginWork$1 (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26696:15)\n    at performUnitOfWork (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26129:20)"}
+{"level":"error","message":"(previous line repeated 2× more)","timestamp":1792347389622}
+{"level":"error","message":"Uncaught TypeError: Cannot read properties of null (reading 'useRef')","timestamp":1792347389623,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-TWJ6NINL.js?v=c5f23c4e:1359:29","stack":"TypeError: Cannot read properties of null (reading 'useRef')\n    at Object.useRef (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-TWJ6NINL.js?v=c5f23c4e:1359:29)\n    at BrowserRouter (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/react-router-dom.js?v=75c14cb4:10984:28)\n    at renderWithHooks (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:18474:26)\n    at mountIndeterminateComponent (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:21852:21)\n    at beginWork (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:22840:22)\n    at HTMLUnknownElement.callCallback2 (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:10558:22)\n    at Object.invokeGuardedCallbackDev (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:10583:24)\n    at invokeGuardedCallback (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:10617:39)\n    at beginWork$1 (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26696:15)\n    at performUnitOfWork (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26129:20)"}
+{"level":"error","message":"The above error occurred in the <BrowserRouter> component:\n\n    at BrowserRouter (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/react-router-dom.js?v=75c14cb4:10979:3)\n    at Le (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/connectkit.js?v=5d0f45bf:18793:42)\n    at Web3ContextProvider (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/connectkit.js?v=5d0f45bf:34420:30)\n    at ConnectKitProvider (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/connectkit.js?v=5d0f45bf:37910:29)\n    at QueryClientProvider (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-WZEH4STI.js?v=5d0f45bf:39:30)\n    at Hydrate (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-XHOQLV4K.js?v=5d0f45bf:392:11)\n    at WagmiProvider (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-XHOQLV4K.js?v=5d0f45bf:414:11)\n\nConsider adding an error boundary to your tree to customize error handling behavior.\nVisit https://reactjs.org/link/error-boundaries to learn more about error boundaries.","timestamp":1792347389633}
+{"level":"error","message":"Uncaught TypeError: Cannot read properties of null (reading 'useRef')","timestamp":1792347389634,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26344:13","stack":"TypeError: Cannot read properties of null (reading 'useRef')\n    at Object.useRef (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-TWJ6NINL.js?v=c5f23c4e:1359:29)\n    at BrowserRouter (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/react-router-dom.js?v=75c14cb4:10984:28)\n    at renderWithHooks (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:18474:26)\n    at mountIndeterminateComponent (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:21852:21)\n    at beginWork (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:22840:22)\n    at beginWork$1 (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26684:22)\n    at performUnitOfWork (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26129:20)\n    at workLoopSync (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26068:13)\n    at renderRootSync (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:26047:15)\n    at recoverFromConcurrentError (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/node_modules/.vite/deps/chunk-YI6NTZAD.js?v=5d0f45bf:25664:28)"}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792347504295}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792347707050}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792347922029}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792347922029}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792347933026}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792347933026}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792347945551}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792347945551}
+{"level":"debug","message":"[vite] hot updated: /src/components/CustomerLayout.tsx","timestamp":1792347985608}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792347985608}
+{"level":"debug","message":"[vite] hot updated: /src/components/CustomerLayout.tsx","timestamp":1792347991954}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792347991954}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792348027614}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348027614}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792348029069}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348029069}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1792348037769}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348037769}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1792348037769}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348037769}
+{"level":"debug","message":"[vite] connected.","timestamp":1792348465382}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348661176}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348661177}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348661328}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348661328}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792348718037}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348718037}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792348718038}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348718038}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348749062}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348749062}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792348749062}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348752620}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348752620}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792348752621}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348800677}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348800677}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792348800677}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348802428}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348802429}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792348802429}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348837635}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348837635}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792348837636}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348854677}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348854678}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792348854678}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348870427}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348870427}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348881992}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348881992}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348909628}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348909628}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348930479}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348930479}
+{"level":"error","message":"[vite] ReferenceError: isExpired is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantTodayPage.tsx?t=1792348951859:782:19","timestamp":1792348953749,"stack":"ReferenceError: isExpired is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantTodayPage.tsx?t=1792348951859:782:19"}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantTodayPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792348953749}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348954235}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348954235}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792348977067}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792348977067}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349003132}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349003132}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349013054}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349013054}
+{"level":"error","message":"[vite] ReferenceError: BarChart2 is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349022571:874:53","timestamp":1792349024655,"stack":"ReferenceError: BarChart2 is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349022571:874:53"}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantReportsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792349024655}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349024781}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349024781}
+{"level":"error","message":"[vite] ReferenceError: isInUtcDay is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349034923:870:27","timestamp":1792349036892,"stack":"ReferenceError: isInUtcDay is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349034923:870:27"}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantReportsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792349036892}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349037461}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349037461}
+{"level":"error","message":"[vite] ReferenceError: isInUtcDay is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349049958:870:27","timestamp":1792349053292,"stack":"ReferenceError: isInUtcDay is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349049958:870:27"}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantReportsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792349053292}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349053292}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349053292}
+{"level":"error","message":"[vite] ReferenceError: isInUtcDay is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349057255:871:27","timestamp":1792349059748,"stack":"ReferenceError: isInUtcDay is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349057255:871:27"}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantReportsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792349059748}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349059924}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349059924}
+{"level":"error","message":"[vite] ReferenceError: isInUtcDay is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349068925:871:27","timestamp":1792349072328,"stack":"ReferenceError: isInUtcDay is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/pages/merchant/MerchantReportsPage.tsx?t=1792349068925:871:27"}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantReportsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792349072328}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349072328}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349072328}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349082923}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349082923}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349098172}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349098172}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349119690}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349119690}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349131394}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349131394}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349143221}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349143221}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349157438}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349157438}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349157438}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349174361}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349174362}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349174362}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349184110}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349184110}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349184110}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349197567}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349197567}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349197568}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349211322}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349211323}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349211323}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349236668}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349236668}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349236668}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792349238643}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349238643}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349238644}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792349960740}

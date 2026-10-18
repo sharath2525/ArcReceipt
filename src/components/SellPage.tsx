@@ -466,7 +466,7 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
   const [confirmedTx, setConfirmedTx]       = useState<`0x${string}` | undefined>()
   const [txError, setTxError]               = useState<string | null>(null)
   const [reviewMode, setReviewMode]         = useState(false)
-  const [txReverted, setTxReverted]         = useState(false)
+  const [_txReverted, setTxReverted]         = useState(false)
 
   // B2+B3 FIX: Restore confirmed order AND pending tracking after wallet
   // reconnects. On Vercel, wagmi's shimDisconnect reconnects asynchronously

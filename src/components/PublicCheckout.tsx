@@ -243,7 +243,11 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
             <p className="text-sm font-semibold text-rose-700">
               Could not load request #{requestId.toString()}
             </p>
-            <p className="text-xs text-rose-600 mt-0.5">RPC error — check your connection.</p>
+            <p className="text-xs text-rose-600 mt-0.5">
+              Unable to reach Arc Testnet. Check your connection and try again.
+              If you use a browser with strict content blocking (e.g. Brave Shields),
+              it may be blocking the RPC providers — try allowing this site or disabling shields temporarily.
+            </p>
           </div>
         </div>
         <button

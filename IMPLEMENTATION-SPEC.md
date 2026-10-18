@@ -497,3 +497,209 @@ All callers of `parseUsdc` already wrap in try/catch and show user-facing errors
 | Studio proxy/session | Yes | No — app must work standalone |
 
 Tracing code verified safe for standalone deployment: all patches check `_enabled` (defaults `false`) and call through to the original function unchanged.
+
+---
+
+## PART 1 — LAYOUT, ROUTING AND MERCHANT ACCESS (2026-10-18)
+
+### Route decisions
+
+| Route | Layout | Component | Notes |
+|-------|---------|-----------|-------|
+| `/merchant` | MerchantLayout | MerchantSellPage → SellPage | gated |
+| `/merchant/today` | MerchantLayout | MerchantTodayPage (stub) | gated |
+| `/merchant/orders` | MerchantLayout | MerchantOrdersPage → MerchantDashboard mode=orders | gated |
+| `/merchant/orders/:requestId` | MerchantLayout | MerchantOrderDetailPage | gated; reads from chain |
+| `/merchant/reports` | MerchantLayout | MerchantReportsPage (stub) | gated |
+| `/merchant/settings` | MerchantLayout | MerchantSettingsPage | gated |
+| `/merchant/demo` | MerchantLayout | MerchantDemoPage → ABDemo | gated |
+| `/pay/:requestId` | CustomerLayout | PayPage → PublicCheckout | open |
+| `/receipt/:requestId` | CustomerLayout | ReceiptPage → PublicReceipt | open |
+| `/payments` | CustomerLayout | PaymentsPage → MyReceipts | open |
+| `/verify` | CustomerLayout | VerifyPage → VerifyPanel | open |
+| `/` (any query string) | — | LegacyRedirect | redirects to new paths |
+| `*` (404) | CustomerLayout | NotFound | |
+
+### Legacy URL mapping
+
+| Old URL | Redirects to |
+|---------|-------------|
+| `?request=N` | `/pay/N` |
+| `?request=N&view=receipt` | `/receipt/N` |
+| `?request=N&view=order` | `/merchant/orders/N` |
+| `?view=orders` | `/merchant/orders` |
+| `?view=my-receipts` | `/payments` |
+| `?view=verify` | `/verify` |
+| `?view=demo` | `/merchant/demo` |
+| `/` (bare) | `/verify` |
+
+### Merchant access configuration
+
+- Env var: `VITE_MERCHANT_ADDRESS` in `.env`
+- Validation: must be `0x` + 40 hex chars (case-insensitive)
+- Access states: `unconfigured` / `disconnected` / `authorized` / `unauthorized`
+- Gate: `MerchantGate` component wraps `MerchantLayout` — evaluated on every render
+- Logic: `src/lib/merchant.ts` — `getMerchantAccess(connectedAddress)`
+- Status: `VITE_MERCHANT_ADDRESS=` (empty placeholder) — **awaiting merchant address from owner**
+
+### Files added this session
+
+| File | Purpose |
+|------|---------|
+| `src/lib/merchant.ts` | Merchant access config + `getMerchantAccess()` |
+| `src/components/MerchantGate.tsx` | Access gate with 4 fallback states |
+| `src/components/MerchantLayout.tsx` | Sidebar workspace (tablet/laptop) + mobile bottom nav |
+| `src/components/CustomerLayout.tsx` | Narrow mobile shell; logo → /verify, not /merchant |
+| `src/AppRouter.tsx` | React Router v6 route tree |
+| `src/pages/LegacyRedirect.tsx` | Old query-string URL → new path redirects |
+| `src/pages/merchant/MerchantSellPage.tsx` | Wraps SellPage |
+| `src/pages/merchant/MerchantTodayPage.tsx` | Stub |
+| `src/pages/merchant/MerchantOrdersPage.tsx` | Wraps MerchantDashboard mode=orders |
+| `src/pages/merchant/MerchantOrderDetailPage.tsx` | Chain-read order QR view |
+| `src/pages/merchant/MerchantReportsPage.tsx` | Stub |
+| `src/pages/merchant/MerchantSettingsPage.tsx` | Shows deployment config |
+| `src/pages/merchant/MerchantDemoPage.tsx` | Wraps ABDemo |
+| `src/pages/customer/PayPage.tsx` | Wraps PublicCheckout |
+| `src/pages/customer/ReceiptPage.tsx` | Wraps PublicReceipt |
+| `src/pages/customer/PaymentsPage.tsx` | Wraps MyReceipts |
+| `src/pages/customer/VerifyPage.tsx` | Wraps VerifyPanel |
+
+### Remaining owner action before merchant workspace works
+
+Set `VITE_MERCHANT_ADDRESS=0x<your-wallet-address>` in `.env` and restart the dev server.
+The workspace shows "Merchant address not configured" until this is set.
+
+### Part 1 checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| P1-1 | Separate merchant and customer layouts | ✅ | MerchantLayout + CustomerLayout |
+| P1-2 | All /merchant/* routes gated by MerchantGate | ✅ | |
+| P1-3 | Customer routes never show merchant nav | ✅ | CustomerLayout has no merchant links |
+| P1-4 | Customer logo does not navigate to merchant workspace | ✅ | Links to /verify |
+| P1-5 | Merchant access from VITE_MERCHANT_ADDRESS (allowlist) | ✅ | |
+| P1-6 | Disconnected: "Connect merchant wallet" | ✅ | |
+| P1-7 | Other wallet: "This wallet does not have merchant access" | ✅ | |
+| P1-8 | Missing/invalid config: fail closed with config message | ✅ | |
+| P1-9 | Never trust URL role or localStorage for access | ✅ | gate rechecks on every render |
+| P1-10 | Legacy ?request=N links still work | ✅ | LegacyRedirect |
+| P1-11 | Legacy ?view=* links still work | ✅ | LegacyRedirect |
+| P1-12 | Vercel rewrites cover new path-based routes | ✅ | existing rewrite `/(.*) → /index.html` |
+| P1-13 | Reports/Today stubs honest (no fake numbers) | ✅ | explicit "coming in Part 3" |
+| P1-14 | Lint/typecheck clean | ✅ | 0 errors 0 warnings |
+| P1-15 | VITE_MERCHANT_ADDRESS set with real address | ✅ | 0xD995d0c31802A8D95C163f875fFefB40AB964eD6 |
+| P1-16 | Live wallet test: authorized wallet sees workspace | ⬜ | ready to test |
+| P1-17 | Live wallet test: other wallet sees access denied | ⬜ | ready to test |
+| P1-18 | Live wallet test: old ?request=N QR link opens checkout | ⬜ | requires live test |
+
+### Known conflicts / notes for Part 2
+
+- `MerchantDashboard` `onNavigateToOrder` prop is now used only via `MerchantOrdersPage` (React Router navigate). The prop signature in `MerchantDashboard.tsx` is kept for compatibility but the internal `_onNavigateToOrder` rename marks it as unused there — Part 2 can wire it properly or remove it.
+- `SellPage` has an unused `_txReverted` state (pre-existing from earlier repair session) — can be cleaned up in Part 2.
+- `ABDemo` tab no longer appears in the main tab bar; it lives at `/merchant/demo` only, accessible from merchant sidebar.
+
+---
+
+## PART 2 — SELL FLOW, CHECKOUT RELIABILITY AND CUSTOMER NAV (2026-10-18)
+
+### What changed
+
+| Area | Change | File |
+|------|--------|------|
+| `MerchantOrderDetailPage` | `isPaid` checked before `expired` — paid request whose expiry has passed now always shows "Paid" | `src/pages/merchant/MerchantOrderDetailPage.tsx` |
+| `MerchantOrderDetailPage` | Added "Next order" button — navigates to `/merchant` (Sell) without cancelling the current request | same |
+| `CustomerLayout` | Added Verify / My Payments nav tabs; logo still links to /verify not merchant workspace | `src/components/CustomerLayout.tsx` |
+| `PublicCheckout` | RPC error message now names connectivity/Brave Shields as possible cause without asserting it | `src/components/PublicCheckout.tsx` |
+| `PublicReceipt` | Same Brave Shields context added to RPC error message | `src/components/PublicReceipt.tsx` |
+
+### What was NOT changed (already correct from earlier session)
+
+- `SellPage.tsx` — cart bigint arithmetic, review screen, frozen snapshot, pending recovery, all correct
+- `PublicCheckout.tsx` — single write hook, exact-amount approve, chain-pinned polling, all error states
+- `PublicReceipt.tsx` — wallet-free, all chain reads, print, explorer links
+- `MyReceipts.tsx` — scan from deployment block, progress display, partial-scan honesty
+- `MerchantDashboard.tsx` — paginated IDs, cancel flow, receipt polling, all correct
+- `pending-tx.ts` — scoped by chain+contract+account+action, no auto-resubmit
+
+### Part 2 checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| P2-1 | Paid status never overridden by expired | ✅ | `isPaid` checked first in OrderDetailPage |
+| P2-2 | Next order button on order detail screen | ✅ | navigates to /merchant, does not cancel |
+| P2-3 | Customer nav shows Verify + My Payments | ✅ | /pay and /receipt excluded (QR-only entry) |
+| P2-4 | RPC error mentions connectivity/Brave Shields | ✅ | PublicCheckout + PublicReceipt |
+| P2-5 | Cart arithmetic uses bigint throughout | ✅ | pre-existing, confirmed |
+| P2-6 | Review screen shown before wallet prompt | ✅ | pre-existing SellPage + MerchantDashboard |
+| P2-7 | Submitted snapshot frozen while pending | ✅ | pre-existing frozenAmount/frozenCart |
+| P2-8 | Pending TX restored after refresh | ✅ | pre-existing pending-tx.ts + useEffect |
+| P2-9 | Single write hook in PublicCheckout | ✅ | pre-existing |
+| P2-10 | Exact-amount approval only (no unlimited) | ✅ | pre-existing |
+| P2-11 | Pay step: receipt.status verified before success | ✅ | pre-existing confirmations:1 |
+| P2-12 | Account switch clears pending/history | ✅ | pre-existing scoped keys |
+| P2-13 | Brave Shields: no claim that UI fixes RPC blocks | ✅ | documented honestly |
+| P2-14 | Live wallet tests (A/B equal orders, pay only B) | ⬜ | requires two wallets + test USDC |
+| P2-15 | Refresh during confirmation recovers tracking | ⬜ | requires live TX in progress |
+| P2-16 | Open receipt in another browser without wallet | ⬜ | requires live paid request |
+| P2-17 | Verify Vercel preview (not just Studio) | ⬜ | requires Vercel deployment |
+
+---
+
+## PART 3 — TODAY DASHBOARD AND HISTORICAL REPORTING (2026-10-18)
+
+### Architecture decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| `RequestCreated` block.timestamp for createdAt | Contract does not store createdAt; block timestamp is the only verifiable source |
+| `PaymentRecorded` log data paidAt for payment time | Equals block.timestamp per contract; authoritative, not derived |
+| Scan start: block 2,900,000 (hardcoded safe lower bound) | Deploy TX confirmed in metadata; lower bound avoids runtime eth_getTransactionReceipt call that could fail |
+| 2,000-block scan chunks | Safe batch size for most RPC providers; no hardcoded rate limits stated |
+| Failed ranges tracked, never zeroed | Partial data is always labelled ~; failed ranges shown with retry |
+| sessionStorage scope: chain+contract+merchant | Prevents data mixing across merchants or chains |
+| UTC half-open intervals [start, nextStart) | Correct boundary: midnight payment → new day |
+| Midnight UTC rollover: 1-minute tick + visibilitychange | Handles tab sleep/resume without requiring a background worker |
+
+### Files added this session
+
+| File | Purpose |
+|------|---------|
+| `src/lib/utc-periods.ts` | UTC interval math: dayStart, monthStart, nextDay, nextMonth, isInDay, isInMonth, formatters |
+| `src/lib/use-event-history.ts` | Bounded getLogs scan hook: RequestCreated + PaymentRecorded, 2k-block chunks, retry, dedup, resume |
+| `src/pages/merchant/MerchantTodayPage.tsx` | Today dashboard (replaces stub): collected/payments/orders/awaiting with honest incomplete labels |
+| `src/pages/merchant/MerchantReportsPage.tsx` | Reports page (replaces stub): period picker, daily breakdown, expandable rows, custom range |
+
+### Part 3 checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| P3-1 | createdAt from RequestCreated block.timestamp | ✅ | getLogs + getBlock per unique block |
+| P3-2 | paidAt from PaymentRecorded log data | ✅ | decoded from log.data offset 64-128 |
+| P3-3 | UTC half-open intervals for day/month | ✅ | utc-periods.ts + boundary test vectors in comments |
+| P3-4 | "Loading — totals incomplete" until scan complete | ✅ | isIncomplete flag; ~ prefix on all partial amounts |
+| P3-5 | Failed ranges never zeroed | ✅ | failedRanges[] tracked; shown with retry |
+| P3-6 | Scan resumes from stored block (sessionStorage) | ✅ | storageKey scoped by chain+contract+merchant |
+| P3-7 | Awaiting = open + non-expired only | ✅ | status===0 && expiresAt > now |
+| P3-8 | Carried-over orders labelled separately | ✅ | isCarriedOver flag on each awaiting row |
+| P3-9 | Collected = paid requests only; expired/cancelled excluded | ✅ | only PaymentRecorded events summed |
+| P3-10 | Created-yesterday-paid-today: counted in correct day each | ✅ | createdAt→created count, paidAt→collected amount |
+| P3-11 | Period picker: Today/Yesterday/This month/Last month/Custom | ✅ | MerchantReportsPage |
+| P3-12 | Daily breakdown within month view | ✅ | daysInUtcMonth() iterated |
+| P3-13 | Expand period to see requests/payments | ✅ | PeriodRow expandable |
+| P3-14 | Rollover while tab open (1-min tick) | ✅ | useUtcNow() with setInterval |
+| P3-15 | Rollover after tab sleep/resume (visibilitychange) | ✅ | document.addEventListener visibilitychange |
+| P3-16 | Account switch data isolation | ✅ | storageKey includes merchant address |
+| P3-17 | No end-of-day snapshots claimed | ✅ | data notes section in Reports |
+| P3-18 | Lint/typecheck clean | ✅ | 0 errors 0 warnings |
+| P3-19 | Live wallet test: Today shows real paid orders | ⬜ | requires live paid request in current UTC day |
+| P3-20 | Live wallet test: created-yesterday-paid-today boundary | ⬜ | requires two requests across midnight |
+| P3-21 | RPC failure on getLogs: failedRanges shown, retry works | ⬜ | cannot simulate without controlled outage |
+| P3-22 | Vercel preview validation | ⬜ | requires deployment |
+
+### Known limitations (honest)
+
+- **Deployment block hardcoded as 2,900,000**: This is a safe lower bound derived from the deploy TX timestamp. The actual deploy block may be slightly higher. The scan will include a few extra empty blocks — no correctness impact.
+- **No end-of-day status snapshots**: We show current status alongside original dates. A request created yesterday that was paid this morning shows "Paid" in yesterday's Created list; the payment counts in today's Collected. This is correct and honest.
+- **sessionStorage only**: History does not persist across devices. On first load of a new browser/device, history re-scans from the deployment block. This is stated in the scan progress banner.
+- **RPC range limits unknown**: We do not assert a specific per-provider block-range cap. 2,000 blocks is a conservative choice. If a provider enforces a tighter limit, the chunk will fail and be recorded in failedRanges for retry.
+- **getBlock calls per unique block**: For RequestCreated events, we fetch the block to get its timestamp. This is one extra RPC call per unique block that contains a created event. For a merchant with many orders in one block, this is one call; for orders spread across blocks it scales with unique block count. This is acceptable for the expected transaction volume.
