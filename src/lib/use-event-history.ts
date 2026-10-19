@@ -124,6 +124,11 @@ const MAX_RETRIES = 3
 /** Milliseconds between retry attempts (exponential backoff). */
 const RETRY_BASE_MS = 1_500
 
+/** Milliseconds to wait between chunks to avoid rate-limiting.
+ *  Arc Testnet public RPC allows ~5 req/s; with 2 calls per chunk
+ *  (created + payment) we need at least 400ms between chunks. */
+const INTER_CHUNK_DELAY_MS = 450
+
 /** Cache schema version. Bump whenever the stored shape changes. */
 const CACHE_VERSION = 2
 
@@ -518,27 +523,23 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
           if (!isCurrent()) break
           try {
             // A1: Use viem's typed event overload with explicit `args`.
-            // The `event` field causes viem to construct the correct topic-0.
-            // The `args` field causes viem to build topic-1/2/3 filters.
-            // This avoids the raw-topics cast that was silently dropped.
-            const [cl, pl] = await Promise.all([
-              publicClient.getLogs({
-                address: CONTRACT_ADDRESS as `0x${string}`,
-                event: REQUEST_CREATED_ABI,
-                args: { merchant: m },
-                fromBlock: from,
-                toBlock: to,
-              }),
-              publicClient.getLogs({
-                address: CONTRACT_ADDRESS as `0x${string}`,
-                event: PAYMENT_RECORDED_ABI,
-                args: { merchant: m },
-                fromBlock: from,
-                toBlock: to,
-              }),
-            ])
-            createdLogs = cl
-            paymentLogs = pl
+            // Serialised (not parallel) to avoid rate-limiting — the public
+            // Arc Testnet RPC rejects concurrent requests from the same IP.
+            createdLogs = await publicClient.getLogs({
+              address: CONTRACT_ADDRESS as `0x${string}`,
+              event: REQUEST_CREATED_ABI,
+              args: { merchant: m },
+              fromBlock: from,
+              toBlock: to,
+            })
+            if (!isCurrent()) break
+            paymentLogs = await publicClient.getLogs({
+              address: CONTRACT_ADDRESS as `0x${string}`,
+              event: PAYMENT_RECORDED_ABI,
+              args: { merchant: m },
+              fromBlock: from,
+              toBlock: to,
+            })
             success = true
             break
           } catch {
@@ -690,8 +691,12 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
         // Advance downward: next chunk ends just below current chunk bottom
         chunkTop = from - 1n
 
-        // Yield between chunks
-        await new Promise(res => setTimeout(res, 50))
+        // Rate-limit guard: wait between chunks so the public RPC doesn't
+        // reject concurrent / back-to-back requests. 450ms gives headroom
+        // for the two serialised calls per chunk at ~5 req/s.
+        if (isCurrent()) {
+          await new Promise(res => setTimeout(res, INTER_CHUNK_DELAY_MS))
+        }
       }
 
       // Scan finished (or aborted) — final state update
