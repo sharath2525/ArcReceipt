@@ -34,7 +34,7 @@ import {
 } from '@/lib/utc-periods'
 import { formatUsdc } from '@/onchain-money'
 import { MERCHANT_ADDRESS } from '@/lib/merchant'
-import type { CreatedEvent, PaymentEvent } from '@/lib/use-event-history'
+import type { CreatedEvent, PaymentEvent, ScanMode } from '@/lib/use-event-history'
 
 // ── Period types ──────────────────────────────────────────────────────────────
 
@@ -86,44 +86,75 @@ function fmtTime(secs: number): string {
 // ── Scan banner ───────────────────────────────────────────────────────────────
 
 function ScanBanner({
-  isScanning, scanProgress, onRescan,
+  isScanning, scanProgress, scanMode, onRescan, onRescanFull,
 }: {
   isScanning: boolean
   scanProgress: { scannedBlock: bigint; headBlock: bigint; isComplete: boolean; failedRanges: { fromBlock: bigint; toBlock: bigint; error: string }[] }
+  scanMode: ScanMode
   onRescan: () => void
+  onRescanFull: () => void
 }) {
-  const blocksRemaining = scanProgress.headBlock > scanProgress.scannedBlock
-    ? scanProgress.headBlock - scanProgress.scannedBlock : 0n
+  const [showFullWarning, setShowFullWarning] = useState(false)
+
   if (!isScanning && scanProgress.isComplete && scanProgress.failedRanges.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-xs text-slate-400">
-        <CheckCircle size={13} className="text-emerald-500" />
-        History complete to block {scanProgress.headBlock.toString()}
+      <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center gap-1.5">
+          <CheckCircle size={13} className="text-emerald-500" />
+          <span>
+            {scanMode === 'recent' ? 'Recent history loaded' : 'Full history loaded'}
+          </span>
+        </div>
+        {scanMode === 'recent' && !showFullWarning && (
+          <button onClick={() => setShowFullWarning(true)}
+            className="text-slate-400 hover:text-slate-600 underline">
+            Load full history
+          </button>
+        )}
+        {scanMode === 'recent' && showFullWarning && (
+          <div className="flex items-center gap-2">
+            <span className="text-amber-600">Scans ~65M blocks — may take a while.</span>
+            <button onClick={() => { setShowFullWarning(false); onRescanFull() }}
+              className="text-rose-600 font-medium hover:underline">Yes, scan all</button>
+            <button onClick={() => setShowFullWarning(false)} className="hover:underline">Cancel</button>
+          </div>
+        )}
       </div>
     )
   }
+
+  if (isScanning) {
+    const pct = scanProgress.headBlock > 0n
+      ? Math.min(100, Math.round(Number(
+          (scanProgress.scannedBlock - (scanProgress.headBlock - (scanProgress.headBlock - scanProgress.scannedBlock + 1n))) * 100n
+          / (scanProgress.headBlock - (scanProgress.headBlock - (scanProgress.headBlock - scanProgress.scannedBlock + 1n)) + 1n)
+        )))
+      : 0
+    const blocksLeft = scanProgress.headBlock > scanProgress.scannedBlock
+      ? scanProgress.headBlock - scanProgress.scannedBlock : 0n
+    void pct
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-2.5 text-xs text-slate-600">
+        <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />
+        <span className="flex-1">
+          Scanning {scanMode === 'full' ? 'full' : 'recent'} history…{' '}
+          <span className="text-slate-400">{blocksLeft.toString()} blocks remaining</span>
+        </span>
+      </div>
+    )
+  }
+
+  // Failures
   return (
-    <div className={`rounded-xl border px-3 py-2.5 flex items-center gap-2.5 text-xs ${
-      !isScanning && scanProgress.failedRanges.length > 0
-        ? 'bg-amber-50 border-amber-200 text-amber-700'
-        : 'bg-slate-50 border-slate-200 text-slate-600'
-    }`}>
-      {isScanning
-        ? <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />
-        : <AlertTriangle size={13} className="text-amber-500 shrink-0" />
-      }
+    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-center gap-2.5 text-xs text-amber-700">
+      <AlertTriangle size={13} className="text-amber-500 shrink-0" />
       <span className="flex-1">
-        {isScanning
-          ? `Loading history (${blocksRemaining.toString()} blocks remaining) — totals incomplete`
-          : `${scanProgress.failedRanges.length} range(s) failed — totals may be incomplete`
-        }
+        {scanProgress.failedRanges.length} range(s) failed to load — some totals may be missing.
       </span>
-      {!isScanning && (
-        <button onClick={onRescan}
-          className="flex items-center gap-0.5 font-medium hover:underline">
-          <RefreshCw size={11} /> Rescan
-        </button>
-      )}
+      <button onClick={onRescan}
+        className="flex items-center gap-0.5 font-medium hover:underline">
+        <RefreshCw size={11} /> Retry
+      </button>
     </div>
   )
 }
@@ -336,7 +367,7 @@ export default function MerchantReportsPage() {
   useNavigate() // kept for future navigation actions
 
   const merchant = MERCHANT_ADDRESS
-  const { createdEvents, paymentEvents, scanProgress, isScanning, rescan } =
+  const { createdEvents, paymentEvents, scanProgress, isScanning, scanMode, rescan, rescanFull } =
     useEventHistory(merchant)
 
   const [activePeriod, setActivePeriod] = useState<PeriodKey>('this-month')
@@ -384,7 +415,10 @@ export default function MerchantReportsPage() {
       </div>
 
       {/* Scan status */}
-      <ScanBanner isScanning={isScanning} scanProgress={scanProgress} onRescan={rescan} />
+      <ScanBanner
+        isScanning={isScanning} scanProgress={scanProgress}
+        scanMode={scanMode} onRescan={rescan} onRescanFull={rescanFull}
+      />
 
       {/* Period picker */}
       <div className="flex gap-1.5 flex-wrap">

@@ -347,3 +347,41 @@
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792349238643}
 {"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792349238644}
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792349960740}
+{"level":"debug","message":"[vite] connected.","timestamp":1792351358657}
+{"level":"debug","message":"[vite] connected.","timestamp":1792351570673}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352265716}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792352265716}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792352265716}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792352265716}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792352265717}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1792352265717}
+{"level":"debug","message":"[vite] hot updated: /src/components/ABDemo.tsx","timestamp":1792352265717}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1792352265717}
+{"level":"debug","message":"[vite] hot updated: /src/components/RequestCard.tsx","timestamp":1792352265717}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792352265717}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352265717}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792352354424}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352354424}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352354424}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792352354426}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352354426}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352354426}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792352382048}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352382048}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352382048}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792352389010}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352389010}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352389010}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792352502449}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352502449}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352531038}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352531038}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352598909}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352598910}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352602205}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352602205}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792352765167}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792352765167}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792352765167}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792355036579}
+{"level":"debug","message":"[vite] connected.","timestamp":1792383768659}

@@ -12,14 +12,20 @@ const USDC_SCALE = 10n ** BigInt(USDC_DECIMALS) // 1_000_000n
 
 /**
  * Format a raw USDC bigint (6dp) as a human-readable string.
- * formatUsdc(1_000_000n) → "1.000000"
- * formatUsdc(10_000_000n) → "10.000000"
+ * Trims trailing zeros beyond 2 decimal places minimum.
+ *   formatUsdc(1_000_000n)  → "1.00"
+ *   formatUsdc(1_500_000n)  → "1.50"
+ *   formatUsdc(1_250_000n)  → "1.25"
+ *   formatUsdc(1n)          → "0.000001"
+ *   formatUsdc(10_000_000n) → "10.00"
  */
 export function formatUsdc(raw: bigint): string {
   const whole = raw / USDC_SCALE
   const frac = raw % USDC_SCALE
   const fracStr = frac.toString().padStart(USDC_DECIMALS, '0')
-  return `${whole}.${fracStr}`
+  // Trim trailing zeros but keep at least 2 decimal places
+  const trimmed = fracStr.replace(/0+$/, '').padEnd(2, '0')
+  return `${whole}.${trimmed}`
 }
 
 /**

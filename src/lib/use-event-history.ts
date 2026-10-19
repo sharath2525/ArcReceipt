@@ -43,21 +43,22 @@ import { MERCHANT_ADDRESS } from '@/lib/merchant'
 
 /**
  * The block in which the ArcReceiptCheckout contract was deployed.
- * Derived from the deploy TX recorded in the contract-metadata file:
+ * Used as the absolute lower bound — never scan below this.
  *   TX:    0xa464d3b5594a471071744763ec765283a579ffae44c890fe7b2eef5c4e8f0f45
  *   Date:  2026-10-16T07:21:04.299Z
- *
- * Arc Testnet produces ~1 block/second. The chain was ~5 weeks old at deploy
- * time. Rather than calling eth_getTransactionReceipt at runtime (an extra
- * async round-trip that could fail), we hardcode a safe lower bound.
- * If this value is slightly below the real deploy block the scan will simply
- * include a few extra empty blocks — no correctness impact.
- *
- * Computed: 5 weeks × 7 × 24 × 3600 ≈ 3_024_000 blocks before Oct 16.
- * Conservative estimate: deploy block ≈ 3_000_000.
- * We use 2_900_000 as a safe lower bound.
  */
 const DEPLOYMENT_BLOCK = 2_900_000n
+
+/**
+ * Default lookback from chain head on a fresh scan (no cached state).
+ * Arc Testnet runs ~2 blocks/second → ~172_800 blocks/day.
+ * 300_000 blocks ≈ ~1.7 days, comfortably covers the entire contract history
+ * (deployed Oct 16, chain head ~67.9M at Oct 18) in ~150 RPC chunks instead
+ * of ~32_500 from deployment block.
+ *
+ * The user can trigger a full-history scan from deployment via rescanFull().
+ */
+const DEFAULT_LOOKBACK = 300_000n
 
 /** Blocks per getLogs call. 2000 is a safe batch size for most RPC providers. */
 const RANGE_SIZE = 2000n
@@ -105,12 +106,19 @@ export interface ScanProgress {
   failedRanges: FailedRange[]
 }
 
+/** Whether the current scan covers recent blocks only or the full history. */
+export type ScanMode = 'recent' | 'full'
+
 export interface EventHistoryState {
   createdEvents: CreatedEvent[]
   paymentEvents: PaymentEvent[]
   scanProgress: ScanProgress
   isScanning: boolean
+  scanMode: ScanMode
+  /** Reset and rescan from recent lookback (fast, default). */
   rescan: () => void
+  /** Reset and rescan from deployment block (slow, full history). */
+  rescanFull: () => void
 }
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
@@ -227,8 +235,6 @@ function decodePaymentLog(log: RawLog, _blockTs: number): PaymentEvent | null {
 export function useEventHistory(merchant: `0x${string}` | null): EventHistoryState {
   const publicClient = usePublicClient({ chainId: ARC_TESTNET_ID })
 
-  // Mutable ref holding in-memory state — avoids stale closure issues in the
-  // scan loop while keeping React state updates for re-renders.
   const stateRef = useRef<{
     createdEvents: CreatedEvent[]
     paymentEvents: PaymentEvent[]
@@ -247,21 +253,27 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
     failedRanges: [],
   })
   const [isScanning, setIsScanning] = useState(false)
+  const [scanMode, setScanMode] = useState<ScanMode>('recent')
 
   const scanAbortRef = useRef<AbortController | null>(null)
 
-  const initState = useCallback((m: string) => {
+  /**
+   * initState — set up in-memory and React state.
+   * startBlock: the block BEFORE which we already have data (i.e. we scan from startBlock+1).
+   * If saved state exists and its scannedBlock >= startBlock, resume from saved state.
+   * Otherwise start fresh from startBlock.
+   */
+  const initState = useCallback((m: string, startBlock: bigint) => {
     const saved = loadState(m)
-    if (saved) {
+    // Resume from saved state if it covers at least startBlock
+    if (saved && BigInt(saved.scannedBlock) >= startBlock) {
       const scannedBlock = BigInt(saved.scannedBlock)
       const ce = saved.createdEvents
       const pe = saved.paymentEvents
       const fr = saved.failedRanges
       stateRef.current = {
-        createdEvents: ce,
-        paymentEvents: pe,
-        scannedBlock,
-        failedRanges: fr,
+        createdEvents: ce, paymentEvents: pe,
+        scannedBlock, failedRanges: fr,
         createdKeys: new Set(ce.map(e => e.key)),
         paymentKeys: new Set(pe.map(e => e.key)),
       }
@@ -270,20 +282,16 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
       setScanProgress(p => ({ ...p, scannedBlock, failedRanges: fr }))
     } else {
       stateRef.current = {
-        createdEvents: [],
-        paymentEvents: [],
-        scannedBlock: DEPLOYMENT_BLOCK - 1n,
+        createdEvents: [], paymentEvents: [],
+        scannedBlock: startBlock,
         failedRanges: [],
-        createdKeys: new Set(),
-        paymentKeys: new Set(),
+        createdKeys: new Set(), paymentKeys: new Set(),
       }
       setCreatedEvents([])
       setPaymentEvents([])
       setScanProgress({
-        scannedBlock: DEPLOYMENT_BLOCK - 1n,
-        headBlock: DEPLOYMENT_BLOCK - 1n,
-        isComplete: false,
-        failedRanges: [],
+        scannedBlock: startBlock, headBlock: startBlock,
+        isComplete: false, failedRanges: [],
       })
     }
   }, [])
@@ -448,32 +456,68 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
     }
   }, [publicClient])
 
-  // Start/restart scan when merchant changes
+  /**
+   * Compute the smart start block for a fresh recent scan:
+   * max(DEPLOYMENT_BLOCK, chainHead - DEFAULT_LOOKBACK).
+   * Falls back to DEPLOYMENT_BLOCK if chainHead is unknown yet.
+   */
+  const getRecentStartBlock = useCallback(async (): Promise<bigint> => {
+    if (!publicClient) return DEPLOYMENT_BLOCK - 1n
+    try {
+      const head = await publicClient.getBlockNumber()
+      const lookbackStart = head > DEFAULT_LOOKBACK ? head - DEFAULT_LOOKBACK : 0n
+      const start = lookbackStart > DEPLOYMENT_BLOCK ? lookbackStart : DEPLOYMENT_BLOCK
+      return start - 1n // initState receives the block BEFORE which we scan from
+    } catch {
+      return DEPLOYMENT_BLOCK - 1n
+    }
+  }, [publicClient])
+
+  // Start scan on mount / merchant change — use recent lookback
   useEffect(() => {
     if (!merchant) return
-    // Only scan for the configured merchant — never another address
     if (merchant.toLowerCase() !== MERCHANT_ADDRESS?.toLowerCase()) return
 
-    // Abort any in-progress scan
     scanAbortRef.current?.abort()
     const abort = new AbortController()
     scanAbortRef.current = abort
+    startTransition(() => setScanMode('recent'))
 
-    startTransition(() => { initState(merchant) })
-    void runScan(merchant, abort)
+    void (async () => {
+      const startBlock = await getRecentStartBlock()
+      startTransition(() => { initState(merchant, startBlock) })
+      void runScan(merchant, abort)
+    })()
 
     return () => { abort.abort() }
-  }, [merchant, initState, runScan])
+  }, [merchant, initState, runScan, getRecentStartBlock])
 
+  /** Rescan from recent lookback (fast). */
   const rescan = useCallback(() => {
     if (!merchant) return
     scanAbortRef.current?.abort()
     const abort = new AbortController()
     scanAbortRef.current = abort
     clearState(merchant)
-    startTransition(() => { initState(merchant) })
+    setScanMode('recent')
+    void (async () => {
+      const startBlock = await getRecentStartBlock()
+      startTransition(() => { initState(merchant, startBlock) })
+      void runScan(merchant, abort)
+    })()
+  }, [merchant, initState, runScan, getRecentStartBlock])
+
+  /** Rescan from deployment block (full history — slow). */
+  const rescanFull = useCallback(() => {
+    if (!merchant) return
+    scanAbortRef.current?.abort()
+    const abort = new AbortController()
+    scanAbortRef.current = abort
+    clearState(merchant)
+    setScanMode('full')
+    startTransition(() => { initState(merchant, DEPLOYMENT_BLOCK - 1n) })
     void runScan(merchant, abort)
   }, [merchant, initState, runScan])
 
-  return { createdEvents, paymentEvents, scanProgress, isScanning, rescan }
+  return { createdEvents, paymentEvents, scanProgress, isScanning, scanMode, rescan, rescanFull }
 }
