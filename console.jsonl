@@ -699,3 +699,14 @@
 {"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792412709104}
 {"level":"debug","message":"[vite] connected.","timestamp":1792413061870}
 {"level":"debug","message":"[vite] connected.","timestamp":1792413273636}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792415806249}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792415806250}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792415806250}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792415999329}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792415999329}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792415999329}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantReportsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792416051217}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792416051217}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1792416051217}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1792416051217}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792416588789}
