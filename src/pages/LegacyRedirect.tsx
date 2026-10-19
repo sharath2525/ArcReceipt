@@ -1,5 +1,5 @@
 /**
- * LegacyRedirect — handles the old query-string URL scheme.
+ * LegacyRedirect — handles the old query-string URL scheme at "/".
  *
  * Old URLs that must keep working:
  *   ?request=N                → /pay/N       (customer checkout)
@@ -9,13 +9,14 @@
  *   ?view=my-receipts         → /payments
  *   ?view=verify              → /verify
  *   ?view=demo                → /merchant/demo
- *   /  (no params)            → /verify      (neutral landing for shared links)
+ *   /  (no params)            → renders HomePage directly (no redirect)
  *
- * This component is rendered for the root "/" route. It runs on mount,
- * inspects the query string, and immediately redirects via React Router.
- * Browser back/forward works because we use Navigate (replaces history entry).
+ * When there are no query params, this component renders the HomePage
+ * directly rather than redirecting, to avoid an infinite loop on the same
+ * path.
  */
 import { Navigate, useSearchParams } from 'react-router-dom'
+import HomePage from './HomePage'
 
 export default function LegacyRedirect() {
   const [params] = useSearchParams()
@@ -65,6 +66,6 @@ export default function LegacyRedirect() {
     return <Navigate to="/merchant/demo" replace />
   }
 
-  // ?view=sell  or  bare /  → /verify (safe public landing)
-  return <Navigate to="/verify" replace />
+  // bare "/" with no recognised params → Home page (rendered directly, no redirect)
+  return <HomePage />
 }

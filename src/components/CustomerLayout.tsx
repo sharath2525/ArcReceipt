@@ -1,74 +1,151 @@
 /**
  * CustomerLayout — narrow mobile-first payment shell.
  *
- * Used for all customer-facing routes: /pay/:id, /receipt/:id,
- * /payments, /verify.
+ * Part 2 changes (D / E):
+ *   - Logo and header link to "/" (home) instead of /verify.
+ *   - Nav includes Home, Verify, My Payments.
+ *   - /pay/:id and /receipt/:id still excluded from nav (QR-only entry) but
+ *     layout renders an unobtrusive "Back to payment #N" contextual link when
+ *     a persisted checkout session exists for the connected wallet — so the
+ *     customer can return without losing their pending tx.
+ *   - Connecting a wallet never exposes merchant navigation.
+ *   - Merchant address/identity never changes from wallet connection here.
  *
- * Rules:
+ * Rules preserved:
  * - No merchant navigation, no Sell/Orders/Reports/Settings/Demo.
- * - Logo navigates to /verify (safe public landing, never the merchant workspace).
- * - Connecting a wallet never changes merchant identity.
+ * - Customer connections never become merchant sessions.
  * - The layout is entirely independent of who is connected.
- * - Nav shows Verify and My Payments only — never merchant routes.
- * - Payment/receipt routes (/pay/:id, /receipt/:id) are not nav items;
- *   they are reached via QR links only. The nav does not highlight them.
  */
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
 import { ConnectKitButton } from 'connectkit'
-import { Receipt, Search, FileText } from 'lucide-react'
+import { Receipt, Search, FileText, Home } from 'lucide-react'
+import { useAccount } from 'wagmi'
+import { ARC_TESTNET_ID } from '@/lib/contract'
+import { CONTRACT_ADDRESS } from '@/lib/contract'
 
 const CUSTOMER_NAV = [
-  { to: '/verify',   label: 'Verify',      icon: <Search   size={14} /> },
-  { to: '/payments', label: 'My Payments', icon: <FileText size={14} /> },
+  { to: '/',        label: 'Home',       icon: <Home     size={14} />, end: true },
+  { to: '/verify',  label: 'Verify',     icon: <Search   size={14} /> },
+  { to: '/payments',label: 'My Payments',icon: <FileText size={14} /> },
 ]
 
+// ── Pending checkout hint ─────────────────────────────────────────────────────
+// When the user is NOT on /pay/:id and there's an active pending checkout
+// session for them, show a small contextual link back to it.
+
+function useActivePay(): { requestId: string | null } {
+  const { address } = useAccount()
+  const location = useLocation()
+
+  // Only show when we're NOT already on a /pay/ route
+  if (!address || location.pathname.startsWith('/pay/')) return { requestId: null }
+  if (!address) return { requestId: null }
+
+  // Scan sessionStorage for a persisted checkout session
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i)
+      if (!key) continue
+      // Key pattern: arc-receipt:checkout:{chainId}:{contract}:{account}:{requestId}
+      const prefix = `arc-receipt:checkout:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS.toLowerCase()}:${address.toLowerCase()}:`
+      if (!key.startsWith(prefix)) continue
+      const requestId = key.slice(prefix.length)
+      if (!requestId || !/^\d+$/.test(requestId)) continue
+      // Check the persisted phase — only hint if we have something actionable
+      const raw = sessionStorage.getItem(key)
+      if (!raw) continue
+      try {
+        const s = JSON.parse(raw) as { phase?: string }
+        if (s.phase && s.phase !== 'done') {
+          return { requestId }
+        }
+      } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+
+  return { requestId: null }
+}
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+
 export function CustomerLayout() {
+  const location = useLocation()
+  const params = useParams<{ requestId?: string }>()
+  const { requestId: activePayId } = useActivePay()
+
+  // Hide the nav bar on /pay/:id and /receipt/:id — those are QR-only pages
+  const isPayOrReceipt =
+    location.pathname.startsWith('/pay/') ||
+    location.pathname.startsWith('/receipt/')
+
+  // Show "Back to payment" hint when the user navigated away from an active checkout
+  const showBackHint =
+    activePayId !== null &&
+    !isPayOrReceipt &&
+    params.requestId !== activePayId
+
   return (
     <div className="min-h-dvh bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 flex flex-col">
       {/* Testnet banner */}
       <div className="w-full bg-amber-400 text-amber-900 text-center text-xs font-semibold py-1.5 px-4 tracking-wide">
-        TESTNET — Arc Testnet (chain 5042002) — No real funds
+        TESTNET — Arc Testnet (chain {ARC_TESTNET_ID}) — No real funds
       </div>
 
       {/* Header */}
-      <header className="px-4 pt-4 pb-3 flex items-center justify-between max-w-lg mx-auto w-full">
-        {/* Logo links to /verify — customer-safe landing, not merchant workspace */}
-        <Link to="/verify" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm">
-            <Receipt size={15} className="text-white" />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-bold text-slate-900 leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-sm border-b border-slate-100 px-4 py-3">
+        <div className="flex items-center justify-between max-w-lg mx-auto">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm">
+              <Receipt size={15} className="text-white" />
+            </div>
+            <p
+              className="text-base font-bold text-slate-900 leading-none"
+              style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.02em' }}
+            >
               ArcReceipt
             </p>
-            <p className="text-xs text-slate-400 leading-tight">Checkout on Arc Testnet</p>
-          </div>
-        </Link>
-        <ConnectKitButton />
+          </Link>
+          <ConnectKitButton />
+        </div>
       </header>
 
-      {/* Customer nav — Verify + My Payments only.
-          /pay/:id and /receipt/:id are not nav items (reached by QR link). */}
-      <div className="max-w-lg mx-auto w-full px-4 pb-3">
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {CUSTOMER_NAV.map(({ to, label, icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
-                  isActive
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`
-              }
-            >
-              {icon}
-              <span>{label}</span>
-            </NavLink>
-          ))}
+      {/* Nav — Home + Verify + My Payments. Hidden on /pay/ and /receipt/ */}
+      {!isPayOrReceipt && (
+        <div className="max-w-lg mx-auto w-full px-4 pb-3">
+          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+            {CUSTOMER_NAV.map(({ to, label, icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                    isActive
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`
+                }
+              >
+                {icon}
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* "Back to payment #N" contextual hint */}
+      {showBackHint && activePayId && (
+        <div className="max-w-lg mx-auto w-full px-4 pb-2">
+          <Link
+            to={`/pay/${activePayId}`}
+            className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            <span>Payment #{activePayId} is still pending</span>
+            <span className="font-semibold shrink-0">Back to payment →</span>
+          </Link>
+        </div>
+      )}
 
       {/* Page content */}
       <main className="flex-1 max-w-lg mx-auto w-full px-4 pb-8">

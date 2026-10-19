@@ -5,13 +5,16 @@
  * The MerchantGate inside this layout blocks access for non-merchant wallets.
  * Sidebar collapses to a bottom tab bar on mobile.
  */
+import React from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ConnectKitButton } from 'connectkit'
+import { useAccount } from 'wagmi'
 import {
   Receipt, ShoppingBag, ClipboardList, BarChart2, Settings,
   FlaskConical, CalendarDays,
 } from 'lucide-react'
 import { MerchantGate } from './MerchantGate'
+import { loadProfile } from '@/pages/merchant/MerchantSettingsPage'
 
 const NAV_ITEMS = [
   { to: '/merchant',          label: 'Sell',     icon: <ShoppingBag size={16} />,   end: true },
@@ -43,6 +46,11 @@ function NavItem({ to, label, icon, end }: { to: string; label: string; icon: Re
 }
 
 export function MerchantLayout() {
+  const { address } = useAccount()
+  const profile = address ? loadProfile(address) : { name: '', logoUrl: '' }
+  const displayName = profile.name || 'ArcReceipt'
+  const [logoOk, setLogoOk] = React.useState(true)
+
   return (
     <MerchantGate>
       <div className="min-h-dvh bg-gradient-to-br from-slate-50 via-white to-emerald-50/20 flex flex-col">
@@ -54,14 +62,23 @@ export function MerchantLayout() {
         <div className="flex flex-1 min-h-0">
           {/* Sidebar — hidden on mobile, visible md+ */}
           <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-slate-200 bg-white/70 backdrop-blur-sm px-3 py-4 gap-1">
-            {/* Logo */}
+            {/* Logo / business profile */}
             <div className="flex items-center gap-2 px-2 pb-4 mb-1 border-b border-slate-100">
-              <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm shrink-0">
-                <Receipt size={15} className="text-white" />
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+                {profile.logoUrl && logoOk ? (
+                  <img
+                    src={profile.logoUrl}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                    onError={() => setLogoOk(false)}
+                  />
+                ) : (
+                  <Receipt size={16} className="text-white" />
+                )}
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                  ArcReceipt
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900 leading-tight truncate" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {displayName}
                 </p>
                 <p className="text-xs text-slate-400 leading-tight">Merchant</p>
               </div>
@@ -93,11 +110,15 @@ export function MerchantLayout() {
             {/* Mobile header (md: hidden) */}
             <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white/80 backdrop-blur-sm">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center">
-                  <Receipt size={13} className="text-white" />
+                <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center overflow-hidden shrink-0">
+                  {profile.logoUrl && logoOk ? (
+                    <img src={profile.logoUrl} alt={displayName} className="w-full h-full object-cover" onError={() => setLogoOk(false)} />
+                  ) : (
+                    <Receipt size={13} className="text-white" />
+                  )}
                 </div>
-                <span className="text-sm font-bold text-slate-900" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                  ArcReceipt
+                <span className="text-sm font-bold text-slate-900 truncate max-w-[140px]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {displayName}
                 </span>
               </div>
               <ConnectKitButton />

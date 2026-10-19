@@ -1,9 +1,22 @@
 /**
- * PublicReceipt — Day 2
- * Wallet-free receipt verification. Works from a fresh browser.
- * Reads all values from chain — no localStorage, no URL-supplied amounts.
+ * PublicReceipt — Part 1 revision
+ *
+ * Part 1 addition (B — fresh-browser receipt TX recovery):
+ *   When `payTxHash` is not provided (e.g. fresh browser load of a paid
+ *   receipt URL, or hard refresh), and the request is paid, recover the
+ *   specific payment transaction hash by fetching the PaymentRecorded event
+ *   for this request ID using viem's typed getLogs.
+ *
+ *   The search is bounded to DEPLOYMENT_BLOCK–head in 10,000-block chunks
+ *   (larger than the normal scan because we know the exact request ID).
+ *   Router-state `payTxHash` is treated as a hint/optimisation only —
+ *   it skips the getLogs lookup but is never presented as verified proof.
+ *
+ * All other behaviour preserved from Day 2.
  */
-import { useReadContract } from 'wagmi'
+import { useState, useEffect, useRef } from 'react'
+import { useReadContract, usePublicClient } from 'wagmi'
+import { parseAbiItem } from 'viem'
 import { CheckCircle, XCircle, Clock, ExternalLink, Printer, AlertCircle, Loader2 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
@@ -12,25 +25,110 @@ import {
   CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
   PAYMENT_RECORDED_TOPIC, type OnchainRequest,
 } from '@/lib/contract'
+import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
 import { formatAddr, formatTs, isExpired } from '@/lib/ui'
+
+const PAYMENT_RECORDED_ABI = parseAbiItem(
+  'event PaymentRecorded(uint256 indexed id, address indexed merchant, address indexed payer, uint256 amount, uint256 paidAt)'
+)
+
+const DEPLOYMENT_BLOCK = ARC_TESTNET_DEPLOYMENT.block
+const RECOVERY_CHUNK = 10_000n
 
 interface PublicReceiptProps {
   requestId: bigint
-  /** If provided, link directly to the payment TX */
+  /** If provided (e.g. from router state after same-session payment),
+   *  this is used as the TX link. On a fresh browser load this is absent
+   *  and we recover it from the PaymentRecorded event instead. */
   payTxHash?: `0x${string}`
 }
 
-export function PublicReceipt({ requestId, payTxHash }: PublicReceiptProps) {
+export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceiptProps) {
   const { data: rawReq, isLoading, error, refetch } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI,
     functionName: 'getRequest', args: [requestId],
     chainId: ARC_TESTNET_ID,
-    query: { refetchInterval: 6000 },
+    query: { refetchInterval: 6_000 },
   })
   const req = rawReq as OnchainRequest | undefined
+  const publicClient = usePublicClient({ chainId: ARC_TESTNET_ID })
 
-  // Fix 4: show Request #N immediately — ID is known from props, only chain
-  // details need the RPC. Never show an anonymous skeleton.
+  // B: Recovered payment TX hash from getLogs (fresh-browser case)
+  const [recoveredTxHash, setRecoveredTxHash] = useState<`0x${string}` | undefined>(hintTxHash)
+  const [recovering, setRecovering] = useState(false)
+  // Use a ref to track in-flight state — avoids triggering the effect again
+  const recoveringRef = useRef(false)
+
+  // Resolved TX hash: prefer hint (same-session), fall back to recovered
+  const payTxHash = hintTxHash ?? recoveredTxHash
+
+  const isPaidReq = !!(req && req.status === 1)
+
+  useEffect(() => {
+    // Only recover when: request is paid, no hint was provided, not already recovered
+    if (!isPaidReq || hintTxHash || recoveredTxHash || !publicClient) return
+    if (recoveringRef.current) return
+
+    recoveringRef.current = true
+    // Set recovering state OUTSIDE the synchronous part of the effect
+    // to avoid the "setRecovering directly in effect" lint warning.
+    const t = setTimeout(() => setRecovering(true), 0)
+
+    void (async () => {
+      try {
+        const head = await publicClient.getBlockNumber()
+        let from = DEPLOYMENT_BLOCK
+        let found: `0x${string}` | undefined
+
+        while (from <= head && !found) {
+          const to = from + RECOVERY_CHUNK - 1n < head ? from + RECOVERY_CHUNK - 1n : head
+          try {
+            // B: typed event lookup filtered by requestId (topic-1)
+            // Cast via unknown to typed shape — post-validate each field.
+            interface RawPayLog {
+              address: string
+              args?: { id?: bigint }
+              transactionHash?: `0x${string}` | null
+            }
+            const logs = (await publicClient.getLogs({
+              address: CONTRACT_ADDRESS as `0x${string}`,
+              event: PAYMENT_RECORDED_ABI,
+              args: { id: requestId },
+              fromBlock: from,
+              toBlock: to,
+            })) as unknown as RawPayLog[]
+            if (logs.length > 0) {
+              for (const log of logs) {
+                const args = log.args
+                if (args?.id === requestId &&
+                    log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()) {
+                  if (log.transactionHash) {
+                    found = log.transactionHash
+                    break
+                  }
+                }
+              }
+            }
+          } catch {
+            // Skip this chunk on failure — try next range
+          }
+          from = to + 1n
+        }
+
+        if (found) setRecoveredTxHash(found)
+      } catch {
+        // Recovery failed — receipt still renders, just without a TX link
+      } finally {
+        recoveringRef.current = false
+        setRecovering(false)
+      }
+    })()
+
+    return () => { clearTimeout(t) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPaidReq, hintTxHash])
+
+  // Fix 4: show Request #N immediately — ID is known from props
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -89,7 +187,6 @@ export function PublicReceipt({ requestId, payTxHash }: PublicReceiptProps) {
 
   return (
     <div className="space-y-4">
-      {/* Receipt header */}
       <div className={`rounded-2xl border p-5 space-y-4 ${
         isPaid ? 'bg-emerald-50 border-emerald-200' :
         isCancelled ? 'bg-rose-50 border-rose-200' :
@@ -146,7 +243,9 @@ export function PublicReceipt({ requestId, payTxHash }: PublicReceiptProps) {
         {/* Onchain evidence */}
         {isPaid && (
           <div className="space-y-1.5 pt-1 border-t border-emerald-200">
-            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Onchain evidence</p>
+            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+              Onchain evidence
+            </p>
             {payTxHash ? (
               <a
                 href={buildTxExplorerUrl(ARC_TESTNET_ID, payTxHash)}
@@ -155,6 +254,11 @@ export function PublicReceipt({ requestId, payTxHash }: PublicReceiptProps) {
               >
                 <ExternalLink size={12} /> View PaymentRecorded event
               </a>
+            ) : recovering ? (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600">
+                <Loader2 size={11} className="animate-spin" />
+                <span>Recovering transaction from chain…</span>
+              </div>
             ) : (
               <a
                 href={buildAddressExplorerUrl(ARC_TESTNET_ID, CONTRACT_ADDRESS)}

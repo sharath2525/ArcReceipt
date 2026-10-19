@@ -44,8 +44,10 @@ import { formatAddr } from '@/lib/ui'
 export interface MenuItem {
   id: string
   name: string
-  price: string   // human USDC string, e.g. "2" or "2.50"
+  price: string      // human USDC string, e.g. "2" or "2.50"
   emoji: string
+  imageUrl?: string  // optional photo URL set in Settings
+  unavailable?: boolean  // set in Settings; hidden from Sell screen
 }
 
 export interface CartItem {
@@ -131,11 +133,66 @@ function clearPendingSnapshot(account: string): void {
   try { sessionStorage.removeItem(pendingSnapshotKey(account)) } catch { /* ignore */ }
 }
 
+// ─── Cart/menu data validation (C: reject invalid stored data) ───────────────
+
+/**
+ * Returns true only when the price string is a valid unsigned decimal USDC
+ * value (max 6 dp) representing a positive non-zero amount.
+ * Used to sanitize menu items loaded from sessionStorage.
+ */
+function isValidMenuPrice(price: unknown): boolean {
+  if (typeof price !== 'string') return false
+  // Must match unsigned decimal pattern with at most 6 dp
+  if (!/^\d+(\.\d{1,6})?$/.test(price.trim())) return false
+  try {
+    const raw = parseUsdc(price.trim())
+    return raw > 0n
+  } catch {
+    return false
+  }
+}
+
+function sanitizeMenuItem(item: unknown): MenuItem | null {
+  if (!item || typeof item !== 'object') return null
+  const o = item as Record<string, unknown>
+  if (typeof o.id !== 'string' || !o.id.trim()) return null
+  if (typeof o.name !== 'string' || !o.name.trim()) return null
+  if (!isValidMenuPrice(o.price)) return null
+  const imageUrl = typeof o.imageUrl === 'string' && o.imageUrl.trim().startsWith('http')
+    ? o.imageUrl.trim() : undefined
+  return {
+    id: o.id,
+    name: o.name,
+    price: String(o.price).trim(),
+    emoji: typeof o.emoji === 'string' ? o.emoji : '🍽',
+    imageUrl,
+    unavailable: typeof o.unavailable === 'boolean' ? o.unavailable : false,
+  }
+}
+
+function sanitizeCartItem(item: unknown): CartItem | null {
+  if (!item || typeof item !== 'object') return null
+  const o = item as Record<string, unknown>
+  if (typeof o.menuId !== 'string') return null
+  if (typeof o.name !== 'string') return null
+  if (!isValidMenuPrice(o.price)) return null
+  const qty = typeof o.qty === 'number' ? Math.floor(o.qty) : 0
+  if (qty <= 0) return null
+  return {
+    menuId: o.menuId,
+    name: o.name,
+    price: String(o.price).trim(),
+    qty,
+  }
+}
+
 function loadCart(account: string): CartItem[] {
   try {
     const raw = sessionStorage.getItem(cartKey(account))
     if (!raw) return []
-    return JSON.parse(raw) as CartItem[]
+    const parsed = JSON.parse(raw) as unknown[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(sanitizeCartItem).filter((x): x is CartItem => x !== null)
   } catch { return [] }
 }
 function saveCart(account: string, cart: CartItem[]): void {
@@ -145,7 +202,11 @@ function loadMenu(account: string): MenuItem[] {
   try {
     const raw = sessionStorage.getItem(menuKey(account))
     if (!raw) return DEFAULT_MENU
-    return JSON.parse(raw) as MenuItem[]
+    const parsed = JSON.parse(raw) as unknown[]
+    if (!Array.isArray(parsed)) return DEFAULT_MENU
+    const valid = parsed.map(sanitizeMenuItem).filter((x): x is MenuItem => x !== null)
+    // Fall back to defaults if validation produces an empty menu
+    return valid.length > 0 ? valid : DEFAULT_MENU
   } catch { return DEFAULT_MENU }
 }
 function saveMenu(account: string, menu: MenuItem[]): void {
@@ -193,10 +254,13 @@ function MenuCard({
         <div className="flex gap-2">
           <button
             onClick={() => {
-              if (!eName.trim() || !ePrice || parseFloat(ePrice) <= 0) {
-                toast.error('Name and positive price required'); return
-              }
-              onEditSave(item.id, eName.trim(), ePrice, eEmoji || '🍽')
+              if (!eName.trim()) { toast.error('Name required'); return }
+              // C: strict parseUsdc — rejects negatives, hex, sci notation
+              try {
+                const raw = parseUsdc(ePrice.trim())
+                if (raw <= 0n) { toast.error('Price must be greater than zero'); return }
+              } catch { toast.error('Invalid price — enter a positive decimal number'); return }
+              onEditSave(item.id, eName.trim(), ePrice.trim(), eEmoji || '🍽')
             }}
             className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
           >Save</button>
@@ -214,7 +278,16 @@ function MenuCard({
         onClick={() => onAdd(item)}
         className="w-full p-4 flex flex-col items-center gap-2 active:bg-emerald-50"
       >
-        <span className="text-3xl">{item.emoji}</span>
+        {item.imageUrl ? (
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="w-14 h-14 rounded-xl object-cover border border-slate-100"
+            onError={e => { (e.currentTarget).style.display = 'none' }}
+          />
+        ) : (
+          <span className="text-3xl">{item.emoji}</span>
+        )}
         <span className="font-semibold text-slate-800 text-sm">{item.name}</span>
         <span className="text-xs text-slate-500 flex items-center gap-1">
           <TokenUSDC variant="branded" size={12} /> {item.price} USDC
@@ -440,8 +513,11 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
 
   const addCustom = useCallback(() => {
     const p = customAmount.trim()
-    if (!p || parseFloat(p) <= 0) { toast.error('Enter a valid amount'); return }
-    try { parseUsdc(p) } catch { toast.error('Invalid amount'); return }
+    if (!p) { toast.error('Enter an amount'); return }
+    // C: use parseUsdc as the primary guard — rejects negatives, hex, sci notation
+    let raw: bigint
+    try { raw = parseUsdc(p) } catch { toast.error('Invalid amount — enter a positive decimal number'); return }
+    if (raw <= 0n) { toast.error('Amount must be greater than zero'); return }
     setCart(prev => [...prev, { menuId: 'custom', name: 'Custom', price: p, qty: 1 }])
     setCustomAmount('')
   }, [customAmount])
@@ -791,7 +867,7 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
             <span className="text-xs text-slate-300">Tap to add</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {menu.map(item => (
+            {menu.filter(item => !item.unavailable).map(item => (
               <MenuCard
                 key={item.id}
                 item={item}
@@ -802,6 +878,11 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
                 onEditCancel={() => setEditingId(null)}
               />
             ))}
+            {menu.length > 0 && menu.every(item => item.unavailable) && (
+              <div className="col-span-2 rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700 text-center">
+                All menu items are marked unavailable. Re-enable them in Settings.
+              </div>
+            )}
           </div>
           {/* Custom amount */}
           <div className="rounded-xl border border-dashed border-slate-200 p-3 space-y-2">

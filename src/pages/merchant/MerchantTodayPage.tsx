@@ -1,129 +1,204 @@
 /**
- * /merchant/today — Today dashboard.
+ * /merchant/today — Today dashboard (Part 3 revision).
  *
- * Shows UTC daily and monthly summaries sourced from verified onchain events:
- *   - RequestCreated (creation time = event block timestamp)
- *   - PaymentRecorded (payment time = paidAt from log data, which equals block.timestamp)
+ * Part 3 additions:
+ *   - Each stat card is clickable and opens a drill-down panel showing
+ *     the underlying records (PaymentRecorded events, RequestCreated events,
+ *     open awaiting requests, month collections).
+ *   - ~ prefix on every incomplete value.
+ *   - Scan completeness shown in card sub-labels and footer.
  *
- * Reporting timezone: UTC. Midnight UTC = 05:30 IST.
- *
- * IMPORTANT HONESTY RULES:
- * - "Loading history — totals incomplete" shown until coverage reaches chain head.
- * - A failed event range is never silently zeroed — it triggers the incomplete warning.
- * - "Awaiting payment" counts only open, non-expired requests.
- * - paidAt from PaymentRecorded data (not block.timestamp of the scan block) is the
- *   authoritative payment timestamp for collections. These values match because the
- *   contract records block.timestamp as paidAt.
- * - Confirmed collected = count by paidAt inside the UTC day/month.
- * - Orders created = count by RequestCreated block.timestamp inside the UTC day.
- * - An order created yesterday and paid today: created count in yesterday, collected today.
- * - Unpaid requests are NOT revenue and are never added to collected amounts.
- * - Expired/cancelled requests do not appear in collections regardless of created date.
- *
- * Rollover handling:
- * - The component re-evaluates `today` on each render.
- * - A `useEffect` at 1-minute intervals ensures rollover while the tab is open.
- * - After a sleeping tab resumes (visibilitychange), a re-render is forced.
+ * Part 1/2 correctness preserved:
+ *   - Awaiting uses useMerchantAllRequests (paginated getMerchantRequests).
+ *   - isComplete only when scanMode=full AND head reached.
+ *   - Rollover: 1-minute tick + visibilitychange.
+ *   - Carried-over requests distinguished from today's.
  */
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useReadContracts } from 'wagmi'
 import {
   CalendarDays, ShoppingBag, RefreshCw, AlertTriangle,
   CheckCircle, Clock, TrendingUp, ArrowRight, Loader2,
+  ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { useEventHistory } from '@/lib/use-event-history'
+import { useMerchantAllRequests } from '@/lib/use-merchant-requests'
 import {
   thisMonthUtcStart, isInUtcDay, isInUtcMonth,
   formatUtcDay, formatUtcMonth, nowSecs, sumBigInt,
   dayStartUtc,
 } from '@/lib/utc-periods'
 import { formatUsdc } from '@/onchain-money'
-import {
-  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
-} from '@/lib/contract'
 import { MERCHANT_ADDRESS } from '@/lib/merchant'
-import { formatAddr, formatTs } from '@/lib/ui'
+import { formatAddr } from '@/lib/ui'
 import type { OnchainRequest } from '@/lib/contract'
+import type { CreatedEvent, PaymentEvent } from '@/lib/use-event-history'
 
-// ── UTC clock tick to handle rollover while tab is open ──────────────────────
+// ── UTC clock tick ─────────────────────────────────────────────────────────────
 
 function useUtcNow(): number {
   const [, tick] = useState(0)
   useEffect(() => {
     const id = setInterval(() => tick(n => n + 1), 60_000)
-    const onVisible = () => { if (document.visibilityState === 'visible') tick(n => n + 1) }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick(n => n + 1)
+    }
     document.addEventListener('visibilitychange', onVisible)
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible) }
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
   return nowSecs()
 }
 
+// ── Time formatters ────────────────────────────────────────────────────────────
+
+function fmtTime(secs: number): string {
+  return new Date(secs * 1000).toLocaleTimeString('en-GB', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+  }) + ' UTC'
+}
+
+function fmtDateShort(secs: number): string {
+  return new Date(secs * 1000).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', timeZone: 'UTC',
+  })
+}
+
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
+type DrillKey = 'collected' | 'orders' | 'awaiting' | 'month'
+
 function StatCard({
-  label, value, sub, icon, highlight, incomplete,
+  id, label, value, sub, icon, highlight, incomplete,
+  activeDrill, onToggle, children,
 }: {
+  id: DrillKey
   label: string
   value: string
   sub?: string
   icon: React.ReactNode
   highlight?: boolean
   incomplete?: boolean
+  activeDrill: DrillKey | null
+  onToggle: (k: DrillKey) => void
+  children: React.ReactNode
 }) {
+  const expanded = activeDrill === id
   return (
-    <div className={`rounded-2xl border p-4 space-y-1.5 ${
+    <div className={`rounded-2xl border overflow-hidden ${
       highlight ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'
     }`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold tracking-widest uppercase text-slate-400">{label}</span>
-        <span className={highlight ? 'text-emerald-500' : 'text-slate-300'}>{icon}</span>
-      </div>
-      <div className="flex items-baseline gap-1.5">
-        <span className={`text-2xl font-bold tabular-nums ${highlight ? 'text-emerald-800' : 'text-slate-900'}`}
-          style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-          {value}
-        </span>
-        {incomplete && (
-          <span className="text-xs text-amber-500 font-medium">~</span>
-        )}
-      </div>
-      {sub && <p className="text-xs text-slate-400">{sub}</p>}
+      <button
+        onClick={() => onToggle(id)}
+        className="w-full p-4 text-left hover:bg-black/[0.02] transition-colors"
+        aria-expanded={expanded}
+      >
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-semibold tracking-widest uppercase text-slate-400">{label}</span>
+          <div className="flex items-center gap-1">
+            <span className={highlight ? 'text-emerald-500' : 'text-slate-300'}>{icon}</span>
+            {expanded
+              ? <ChevronUp size={12} className="text-slate-400" />
+              : <ChevronDown size={12} className="text-slate-400" />}
+          </div>
+        </div>
+        <div className="flex items-baseline gap-1">
+          <span
+            className={`text-2xl font-bold tabular-nums ${highlight ? 'text-emerald-800' : 'text-slate-900'}`}
+            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            {value}
+          </span>
+          {incomplete && <span className="text-xs text-amber-500 font-semibold">~</span>}
+        </div>
+        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+      </button>
+
+      {expanded && (
+        <div className="border-t border-slate-100 px-3 pb-3 pt-2 space-y-1.5 max-h-72 overflow-y-auto">
+          {children}
+        </div>
+      )}
     </div>
   )
 }
 
-// ── Awaiting list item ────────────────────────────────────────────────────────
+// ── Drill-down rows ───────────────────────────────────────────────────────────
 
-function AwaitingRow({
-  id, req, isCarriedOver,
-}: {
-  id: bigint
-  req: OnchainRequest
-  isCarriedOver: boolean
-}) {
-  const navigate = useNavigate()
+function PayDrillRow({ ev }: { ev: PaymentEvent }) {
+  const nav = useNavigate()
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-white border border-slate-100 gap-3">
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-slate-400 shrink-0">#{id.toString()}</span>
-          <span className="text-sm font-semibold text-slate-800">{formatUsdc(req.amount)} USDC</span>
-          {isCarriedOver && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-600 font-medium shrink-0">
-              carried over
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-slate-400">Expires {formatTs(req.expiresAt)}</p>
+    <div className="flex items-center justify-between py-2 px-2.5 rounded-lg bg-emerald-50 border border-emerald-100 gap-2 text-xs">
+      <div className="flex items-center gap-2 min-w-0">
+        <CheckCircle size={11} className="text-emerald-500 shrink-0" />
+        <span className="font-mono text-slate-400 shrink-0">#{ev.requestId.toString()}</span>
+        <span className="font-semibold text-emerald-800">{formatUsdc(ev.amount)} USDC</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0 text-slate-400">
+        <span className="hidden sm:block">{formatAddr(ev.payer)}</span>
+        <span>{fmtTime(ev.paidAt)}</span>
+        <button onClick={() => void nav(`/receipt/${ev.requestId.toString()}`)}
+          className="text-emerald-600 hover:underline font-medium">Receipt</button>
+      </div>
+    </div>
+  )
+}
+
+function CreatedDrillRow({ ev }: { ev: CreatedEvent }) {
+  const nav = useNavigate()
+  return (
+    <div className="flex items-center justify-between py-2 px-2.5 rounded-lg bg-slate-50 border border-slate-100 gap-2 text-xs">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-mono text-slate-400 shrink-0">#{ev.requestId.toString()}</span>
+        <span className="font-semibold text-slate-700">{formatUsdc(ev.amount)} USDC</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0 text-slate-400">
+        <span>{fmtTime(ev.createdAt)}</span>
+        <button onClick={() => void nav(`/merchant/orders/${ev.requestId.toString()}`)}
+          className="text-slate-600 hover:underline font-medium">Order</button>
+      </div>
+    </div>
+  )
+}
+
+function AwaitingDrillRow({ id, req, isCarriedOver }: {
+  id: bigint; req: OnchainRequest; isCarriedOver: boolean
+}) {
+  const nav = useNavigate()
+  return (
+    <div className="flex items-center justify-between py-2 px-2.5 rounded-lg bg-white border border-slate-100 gap-2 text-xs">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-mono text-slate-400 shrink-0">#{id.toString()}</span>
+        <span className="font-semibold text-slate-800">{formatUsdc(req.amount)} USDC</span>
+        {isCarriedOver && (
+          <span className="px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-600 font-medium shrink-0">
+            carried over
+          </span>
+        )}
       </div>
       <button
-        onClick={() => void navigate(`/merchant/orders/${id.toString()}`)}
-        className="shrink-0 flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+        onClick={() => void nav(`/merchant/orders/${id.toString()}`)}
+        className="shrink-0 flex items-center gap-0.5 text-emerald-600 hover:text-emerald-700 font-medium"
       >
-        QR <ArrowRight size={12} />
+        QR <ArrowRight size={11} />
       </button>
+    </div>
+  )
+}
+
+function MonthDrillRow({ ev }: { ev: PaymentEvent }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white border border-slate-100 gap-2 text-xs">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-mono text-slate-400 shrink-0">#{ev.requestId.toString()}</span>
+        <span className="font-semibold text-emerald-700">{formatUsdc(ev.amount)} USDC</span>
+      </div>
+      <span className="text-slate-400 shrink-0">
+        {fmtDateShort(ev.paidAt)} {fmtTime(ev.paidAt)}
+      </span>
     </div>
   )
 }
@@ -137,15 +212,14 @@ export default function MerchantTodayPage() {
   const todayStart = dayStartUtc(now)
   const monthStart = thisMonthUtcStart()
 
-  // Event history from chain
   const merchant = MERCHANT_ADDRESS
   const { createdEvents, paymentEvents, scanProgress, isScanning, rescan } =
     useEventHistory(merchant)
 
   // ── UTC day/month derived metrics ──────────────────────────────────────────
 
-  const todayCreatedIds = useMemo(
-    () => createdEvents.filter(e => isInUtcDay(e.createdAt, todayStart)).map(e => e.requestId),
+  const todayCreated = useMemo(
+    () => createdEvents.filter(e => isInUtcDay(e.createdAt, todayStart)),
     [createdEvents, todayStart]
   )
 
@@ -159,108 +233,78 @@ export default function MerchantTodayPage() {
     [paymentEvents, monthStart]
   )
 
-  const collectedToday: bigint = useMemo(
+  const collectedToday = useMemo(
     () => sumBigInt(todayPayments.map(e => e.amount)),
     [todayPayments]
   )
 
-  const collectedThisMonth: bigint = useMemo(
+  const collectedThisMonth = useMemo(
     () => sumBigInt(thisMonthPayments.map(e => e.amount)),
     [thisMonthPayments]
   )
 
-  // ── Live request state for "Awaiting payment" ──────────────────────────────
-  // We fetch all merchant request IDs via getMerchantRequests, then read
-  // statuses to find open + non-expired ones. We also need to know whether
-  // each open request was created today or earlier.
+  // ── A5: Live request state for "Awaiting payment" ─────────────────────────
 
-  const allCreatedIds = useMemo(
-    () => createdEvents.map(e => e.requestId),
-    [createdEvents]
-  )
+  const { requestMap, failedStatusCount, isLoading: requestsLoading } =
+    useMerchantAllRequests(merchant)
 
-  // Fetch request data for all known created IDs to check live status
-  const requestContracts = useMemo(
-    () => allCreatedIds.map(id => ({
-      address: CONTRACT_ADDRESS as `0x${string}`,
-      abi: CONTRACT_ABI,
-      functionName: 'getRequest' as const,
-      args: [id] as [bigint],
-      chainId: ARC_TESTNET_ID,
-    })),
-    [allCreatedIds]
-  )
-
-  const { data: requestsData } = useReadContracts({
-    contracts: requestContracts,
-    query: {
-      enabled: requestContracts.length > 0,
-      staleTime: 15_000,
-      refetchInterval: 30_000,
-    },
-  })
-
-  // Build map: id → OnchainRequest
-  const requestMap = useMemo(() => {
-    const map = new Map<string, OnchainRequest>()
-    if (!requestsData) return map
-    requestsData.forEach((item, i) => {
-      if (item.status === 'success' && item.result) {
-        const req = item.result as OnchainRequest
-        if (req.merchant !== '0x0000000000000000000000000000000000000000') {
-          map.set(allCreatedIds[i].toString(), req)
-        }
-      }
-    })
+  const createdAtMap = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const ev of createdEvents) map.set(ev.requestId.toString(), ev.createdAt)
     return map
-  }, [requestsData, allCreatedIds])
+  }, [createdEvents])
 
-  // Awaiting payment = open status (0) AND not expired AND merchant matches
   const nowBigint = BigInt(now)
   const awaitingRequests = useMemo(() => {
     const result: { id: bigint; req: OnchainRequest; isCarriedOver: boolean }[] = []
-    for (const ev of createdEvents) {
-      const req = requestMap.get(ev.requestId.toString())
-      if (!req) continue
-      if (req.status !== 0) continue  // not open
-      if (req.expiresAt <= nowBigint) continue  // expired
-      const isCarriedOver = !isInUtcDay(ev.createdAt, todayStart)
-      result.push({ id: ev.requestId, req, isCarriedOver })
+    for (const [idStr, req] of requestMap.entries()) {
+      if (req.status !== 0) continue
+      if (req.expiresAt <= nowBigint) continue
+      const id = BigInt(idStr)
+      const createdAt = createdAtMap.get(idStr)
+      const isCarriedOver = createdAt === undefined || !isInUtcDay(createdAt, todayStart)
+      result.push({ id, req, isCarriedOver })
     }
-    // Sort: today's first, then carried over; within each group newest ID first
     return result.sort((a, b) => {
       if (a.isCarriedOver !== b.isCarriedOver) return a.isCarriedOver ? 1 : -1
       return a.id > b.id ? -1 : a.id < b.id ? 1 : 0
     })
-  }, [createdEvents, requestMap, nowBigint, todayStart])
+  }, [requestMap, nowBigint, createdAtMap, todayStart])
 
-  const awaitingToday = awaitingRequests.filter(r => !r.isCarriedOver)
-  const awaitingCarriedOver = awaitingRequests.filter(r => r.isCarriedOver)
+  // ── Sorted helpers ─────────────────────────────────────────────────────────
 
-  // ── Recent paid today ──────────────────────────────────────────────────────
-  const recentPaid = useMemo(
-    () => [...todayPayments]
-      .sort((a, b) => b.paidAt - a.paidAt)
-      .slice(0, 5),
+  const sortedTodayPayments = useMemo(
+    () => [...todayPayments].sort((a, b) => b.paidAt - a.paidAt),
     [todayPayments]
+  )
+  const sortedTodayCreated = useMemo(
+    () => [...todayCreated].sort((a, b) => b.createdAt - a.createdAt),
+    [todayCreated]
+  )
+  const sortedMonthPayments = useMemo(
+    () => [...thisMonthPayments].sort((a, b) => b.paidAt - a.paidAt),
+    [thisMonthPayments]
   )
 
   // ── Incomplete / scan status ───────────────────────────────────────────────
   const isIncomplete = !scanProgress.isComplete || scanProgress.failedRanges.length > 0
   const blocksRemaining = scanProgress.headBlock > scanProgress.scannedBlock
-    ? scanProgress.headBlock - scanProgress.scannedBlock
-    : 0n
+    ? scanProgress.headBlock - scanProgress.scannedBlock : 0n
 
-  const [showAll, setShowAll] = useState(false)
-  const displayedAwaiting = showAll ? awaitingRequests : awaitingRequests.slice(0, 5)
+  // ── Drill state ────────────────────────────────────────────────────────────
+  const [drill, setDrill] = useState<DrillKey | null>(null)
+  const toggleDrill = useCallback((k: DrillKey) => {
+    setDrill(prev => prev === k ? null : k)
+  }, [])
 
-  // ── Keep a stable rescan ref to avoid stale closure ──────────────────────
+  // ── Stable rescan ref ──────────────────────────────────────────────────────
   const rescanRef = useRef(rescan)
   useEffect(() => { rescanRef.current = rescan }, [rescan])
   const handleRescan = useCallback(() => { rescanRef.current() }, [])
 
   return (
     <div className="space-y-5">
+
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -268,7 +312,7 @@ export default function MerchantTodayPage() {
             Today
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {formatUtcDay(todayStart)} · Reporting timezone: UTC
+            {formatUtcDay(todayStart)} · UTC
           </p>
         </div>
         <button
@@ -282,7 +326,7 @@ export default function MerchantTodayPage() {
       {/* Scan status banner */}
       {(isScanning || isIncomplete) && (
         <div className={`rounded-2xl border px-4 py-3 flex items-start gap-3 ${
-          isIncomplete && !isScanning && scanProgress.failedRanges.length > 0
+          !isScanning && scanProgress.failedRanges.length > 0
             ? 'bg-amber-50 border-amber-200'
             : 'bg-slate-50 border-slate-200'
         }`}>
@@ -291,16 +335,14 @@ export default function MerchantTodayPage() {
               ? <Loader2 size={15} className="animate-spin text-slate-500" />
               : scanProgress.failedRanges.length > 0
                 ? <AlertTriangle size={15} className="text-amber-500" />
-                : <CheckCircle size={15} className="text-emerald-500" />
-            }
+                : <CheckCircle size={15} className="text-emerald-500" />}
           </div>
           <div className="flex-1 min-w-0 space-y-0.5">
             {isScanning ? (
               <>
                 <p className="text-xs font-semibold text-slate-700">Loading history — totals incomplete</p>
                 <p className="text-xs text-slate-400">
-                  Scanned to block {scanProgress.scannedBlock.toString()}{' '}
-                  ({blocksRemaining.toString()} blocks remaining)
+                  Block {scanProgress.scannedBlock.toString()} of {scanProgress.headBlock.toString()} · {blocksRemaining.toString()} remaining
                 </p>
               </>
             ) : scanProgress.failedRanges.length > 0 ? (
@@ -308,9 +350,7 @@ export default function MerchantTodayPage() {
                 <p className="text-xs font-semibold text-amber-700">
                   {scanProgress.failedRanges.length} range{scanProgress.failedRanges.length > 1 ? 's' : ''} failed — totals may be incomplete
                 </p>
-                <p className="text-xs text-amber-600">
-                  Failed ranges are not counted as zero. Rescan to retry.
-                </p>
+                <p className="text-xs text-amber-600">Failed ranges are not counted as zero.</p>
                 <button onClick={handleRescan}
                   className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 hover:underline mt-0.5">
                   <RefreshCw size={11} /> Rescan
@@ -318,128 +358,88 @@ export default function MerchantTodayPage() {
               </>
             ) : (
               <p className="text-xs font-semibold text-slate-600">
-                History up to date (block {scanProgress.headBlock.toString()})
+                History complete · block {scanProgress.headBlock.toString()}
               </p>
             )}
           </div>
         </div>
       )}
 
-      {/* Today stats */}
+      {/* Stats grid — each card is expandable */}
       <div className="grid grid-cols-2 gap-3">
+
         <StatCard
+          id="collected"
           label="Collected today"
           value={formatUsdc(collectedToday)}
           sub={`${todayPayments.length} payment${todayPayments.length !== 1 ? 's' : ''} · USDC`}
           icon={<TrendingUp size={16} />}
           highlight={collectedToday > 0n}
           incomplete={isIncomplete}
-        />
+          activeDrill={drill}
+          onToggle={toggleDrill}
+        >
+          {sortedTodayPayments.length === 0
+            ? <p className="text-xs text-slate-400 py-2 text-center">No confirmed payments today yet.</p>
+            : sortedTodayPayments.map(ev => <PayDrillRow key={ev.key} ev={ev} />)}
+        </StatCard>
+
         <StatCard
+          id="orders"
           label="Orders today"
-          value={todayCreatedIds.length.toString()}
+          value={todayCreated.length.toString()}
           sub="Created since midnight UTC"
           icon={<CalendarDays size={16} />}
           incomplete={isIncomplete}
-        />
+          activeDrill={drill}
+          onToggle={toggleDrill}
+        >
+          {sortedTodayCreated.length === 0
+            ? <p className="text-xs text-slate-400 py-2 text-center">No orders created today yet.</p>
+            : sortedTodayCreated.map(ev => <CreatedDrillRow key={ev.key} ev={ev} />)}
+        </StatCard>
+
         <StatCard
+          id="awaiting"
           label="Awaiting payment"
-          value={awaitingRequests.length.toString()}
-          sub="All open, non-expired requests"
+          value={requestsLoading ? '…' : awaitingRequests.length.toString()}
+          sub={failedStatusCount > 0
+            ? `${failedStatusCount} status read(s) failed`
+            : 'Open, non-expired'}
           icon={<Clock size={16} />}
-        />
+          incomplete={failedStatusCount > 0}
+          activeDrill={drill}
+          onToggle={toggleDrill}
+        >
+          {awaitingRequests.length === 0
+            ? <p className="text-xs text-slate-400 py-2 text-center">No open requests awaiting payment.</p>
+            : awaitingRequests.map(({ id, req, isCarriedOver }) => (
+                <AwaitingDrillRow key={id.toString()} id={id} req={req} isCarriedOver={isCarriedOver} />
+              ))}
+        </StatCard>
+
         <StatCard
-          label={`${formatUtcMonth(monthStart)}`}
+          id="month"
+          label={formatUtcMonth(monthStart)}
           value={formatUsdc(collectedThisMonth)}
           sub="Collected this month · USDC"
           icon={<TokenUSDC variant="mono" size={16} />}
           incomplete={isIncomplete}
-        />
+          activeDrill={drill}
+          onToggle={toggleDrill}
+        >
+          {sortedMonthPayments.length === 0
+            ? <p className="text-xs text-slate-400 py-2 text-center">No confirmed payments this month yet.</p>
+            : sortedMonthPayments.map(ev => <MonthDrillRow key={ev.key} ev={ev} />)}
+        </StatCard>
+
       </div>
 
       {/* ~ disclaimer */}
       {isIncomplete && (
         <p className="text-xs text-amber-600 text-center">
-          ~ Totals with ~ are based on history scanned so far. Refresh to update.
+          ~ Values marked ~ are based on history scanned so far. Tap any card to see underlying records.
         </p>
-      )}
-
-      {/* Recent paid today */}
-      {recentPaid.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold tracking-widest uppercase text-slate-400">
-            Paid today
-          </p>
-          <div className="space-y-1.5">
-            {recentPaid.map(ev => {
-              const req = requestMap.get(ev.requestId.toString())
-              return (
-                <div key={ev.key}
-                  className="flex items-center justify-between py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <CheckCircle size={13} className="text-emerald-500 shrink-0" />
-                    <span className="text-xs font-mono text-slate-400 shrink-0">#{ev.requestId.toString()}</span>
-                    <span className="text-sm font-semibold text-emerald-800">
-                      {formatUsdc(ev.amount)} USDC
-                    </span>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-slate-400">{formatAddr(ev.payer)}</p>
-                    {req && (
-                      <button
-                        onClick={() => void navigate(`/receipt/${ev.requestId.toString()}`)}
-                        className="text-xs text-emerald-600 hover:underline"
-                      >
-                        Receipt →
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Awaiting payment */}
-      {awaitingRequests.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold tracking-widest uppercase text-slate-400">
-            Awaiting payment ({awaitingRequests.length})
-          </p>
-
-          {awaitingToday.length > 0 && (
-            <div className="space-y-1.5">
-              {displayedAwaiting
-                .filter(r => !r.isCarriedOver)
-                .map(({ id, req }) => (
-                  <AwaitingRow key={id.toString()} id={id} req={req} isCarriedOver={false} />
-                ))}
-            </div>
-          )}
-
-          {awaitingCarriedOver.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-400 font-medium">Carried over from earlier days</p>
-              <div className="space-y-1.5">
-                {displayedAwaiting
-                  .filter(r => r.isCarriedOver)
-                  .map(({ id, req }) => (
-                    <AwaitingRow key={id.toString()} id={id} req={req} isCarriedOver={true} />
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {awaitingRequests.length > 5 && (
-            <button
-              onClick={() => setShowAll(s => !s)}
-              className="text-xs text-slate-500 hover:text-slate-700 font-medium"
-            >
-              {showAll ? 'Show less' : `Show all ${awaitingRequests.length}`}
-            </button>
-          )}
-        </div>
       )}
 
       {/* Empty state — only when scan is complete */}
@@ -447,9 +447,7 @@ export default function MerchantTodayPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center space-y-3">
           <CalendarDays size={28} className="mx-auto text-slate-300" />
           <p className="text-sm font-semibold text-slate-600">No activity today</p>
-          <p className="text-xs text-slate-400">
-            Start a sale to create your first order of the day.
-          </p>
+          <p className="text-xs text-slate-400">Start a sale to create your first order of the day.</p>
           <button
             onClick={() => void navigate('/merchant')}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors"
@@ -461,7 +459,7 @@ export default function MerchantTodayPage() {
 
       {/* Data honesty footer */}
       <p className="text-xs text-slate-300 text-center">
-        Collected = verified PaymentRecorded events · Creation = RequestCreated block timestamps ·
+        Collected = verified PaymentRecorded events · Created = RequestCreated block timestamps ·
         Local item labels are merchant notes only · Reporting timezone: UTC
       </p>
 

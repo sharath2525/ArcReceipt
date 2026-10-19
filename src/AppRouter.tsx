@@ -48,20 +48,16 @@ export default function AppRouter() {
 
       {/* ── Customer experience ─────────────────────────────────────────── */}
       <Route element={<CustomerLayout />}>
+        {/* Root — LegacyRedirect handles ?request=N etc., then renders HomePage */}
+        <Route path="/"                   element={<LegacyRedirect />} />
         <Route path="/pay/:requestId"     element={<PayPage />} />
         <Route path="/receipt/:requestId" element={<ReceiptPage />} />
         <Route path="/payments"           element={<PaymentsPage />} />
         <Route path="/verify"             element={<VerifyPage />} />
       </Route>
 
-      {/* ── Legacy query-string redirect + root ─────────────────────────── */}
-      {/* Catches "/" with any query string (old ?request=N links etc.)      */}
-      <Route path="/" element={<LegacyRedirect />} />
-
-      {/* ── 404 fallback — render in customer layout ─────────────────────── */}
-      <Route element={<CustomerLayout />}>
-        <Route path="*" element={<NotFound />} />
-      </Route>
+      {/* ── 404 fallback ─────────────────────────────────────────────────── */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }

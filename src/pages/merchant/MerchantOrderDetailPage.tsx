@@ -4,12 +4,12 @@
  * Reads all data from chain — no sessionStorage dependency.
  */
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useReadContract } from 'wagmi'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   ArrowLeft, CheckCircle, AlertCircle, Loader2, ExternalLink,
-  Copy, QrCode, ArrowRight, RefreshCw,
+  Copy, QrCode, ArrowRight, RefreshCw, Maximize2, X,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import {
@@ -18,6 +18,72 @@ import {
 } from '@/lib/contract'
 import { formatUsdc } from '@/onchain-money'
 import { formatAddr, formatTs, statusMeta, isExpired } from '@/lib/ui'
+
+// ── PresentationMode — full-screen QR + amount for counter display ────────────
+
+function PresentationMode({
+  requestId, amount, paymentLink, isPaid, onClose,
+}: {
+  requestId: bigint
+  amount: bigint
+  paymentLink: string
+  isPaid: boolean
+  onClose: () => void
+}) {
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center gap-8 p-8 cursor-pointer"
+      onClick={onClose}
+      role="button"
+      aria-label="Close presentation mode"
+    >
+      {/* Close button */}
+      <button
+        className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+        onClick={(e) => { e.stopPropagation(); onClose() }}
+        aria-label="Exit presentation mode"
+      >
+        <X size={20} />
+      </button>
+
+      {/* Status banner when paid */}
+      {isPaid && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold">
+          <CheckCircle size={16} /> Paid
+        </div>
+      )}
+
+      {/* Amount */}
+      <div className="text-center space-y-1">
+        <div className="flex items-center justify-center gap-3">
+          <TokenUSDC variant="branded" size={40} />
+          <span
+            className="text-6xl font-bold tabular-nums tracking-tight text-slate-900"
+            style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.04em' }}
+          >
+            {formatUsdc(amount)}
+          </span>
+          <span className="text-2xl text-slate-400">USDC</span>
+        </div>
+        <p className="text-sm text-slate-400">Request #{requestId.toString()}</p>
+      </div>
+
+      {/* Large QR */}
+      <div className="p-5 bg-white rounded-3xl border border-slate-100 shadow-lg">
+        <QRCodeSVG value={paymentLink} size={280} bgColor="#ffffff" fgColor="#0f172a" level="M" />
+      </div>
+
+      <p className="text-sm text-slate-400">Customer scans to pay · Tap anywhere to close</p>
+    </div>
+  )
+}
 
 export default function MerchantOrderDetailPage() {
   const { requestId: rawId } = useParams<{ requestId: string }>()
@@ -52,6 +118,7 @@ export default function MerchantOrderDetailPage() {
 function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () => void }) {
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
+  const [presentation, setPresentation] = useState(false)
 
   const { data: rawReq, isLoading, error, refetch } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI,
@@ -137,6 +204,17 @@ function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () 
 
   return (
     <div className="space-y-4">
+      {/* Presentation mode overlay */}
+      {presentation && (
+        <PresentationMode
+          requestId={requestId}
+          amount={req.amount}
+          paymentLink={paymentLink}
+          isPaid={isPaid}
+          onClose={() => setPresentation(false)}
+        />
+      )}
+
       <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600">
         <ArrowLeft size={13} /> Back to Orders
       </button>
@@ -214,6 +292,15 @@ function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () 
               <ArrowRight size={14} /> Open checkout
             </a>
           </div>
+          {/* Presentation mode — enlarge QR + amount for counter display */}
+          {!isCancelled && !expired && (
+            <button
+              onClick={() => setPresentation(true)}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-sm font-semibold transition-colors"
+            >
+              <Maximize2 size={14} /> Present order
+            </button>
+          )}
           {isPaid && (
             <button
               onClick={() => void navigate(`/receipt/${requestId.toString()}`)}
