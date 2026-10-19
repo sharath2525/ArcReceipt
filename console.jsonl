@@ -568,3 +568,134 @@
 {"level":"debug","message":"[vite] connected.","timestamp":1792403410345}
 {"level":"debug","message":"[vite] hot updated: /src/pages/HomePage.tsx","timestamp":1792404412135}
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792404412135}
+{"level":"debug","message":"[vite] hot updated: /src/pages/HomePage.tsx","timestamp":1792405208849}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792405208849}
+{"level":"debug","message":"[vite] connected.","timestamp":1792405366480}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792406379228}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792406379240}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792406846187}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406846187}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792406866284}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406866284}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792406872515}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406872515}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792406872974}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406872974}
+{"level":"debug","message":"[vite] hot updated: /src/pages/HomePage.tsx","timestamp":1792406910195}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406910196}
+{"level":"debug","message":"[vite] hot updated: /src/pages/HomePage.tsx","timestamp":1792406910198}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406910199}
+{"level":"debug","message":"[vite] hot updated: /src/pages/HomePage.tsx","timestamp":1792406910200}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406910200}
+{"level":"debug","message":"[vite] hot updated: /src/components/CustomerLayout.tsx","timestamp":1792406941258}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406941258}
+{"level":"debug","message":"[vite] hot updated: /src/components/CustomerLayout.tsx","timestamp":1792406941262}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406941262}
+{"level":"debug","message":"[vite] hot updated: /src/components/CustomerLayout.tsx","timestamp":1792406941263}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792406941263}
+{"level":"debug","message":"[vite] connected.","timestamp":1792407125483}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792408371081}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792408371087}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792408371087}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792409078546}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792409632491}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792409632497}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792409632498}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792411258936}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411296078}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411296078}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411296078}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411297121}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411297121}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411361858}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411361859}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411361859}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411363222}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411363222}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411363885}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411363885}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411384388}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411384388}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411384388}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411385399}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411385399}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411395864}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411395864}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411395864}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411396927}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411396927}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411426756}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411426756}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411426756}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411428917}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411428917}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411468004}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411468004}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411468004}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411469025}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411469025}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411469386}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411469386}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411469386}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411469812}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411469812}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411513237}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411513237}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411513237}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411513239}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411513239}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411513239}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411514202}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411514202}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411514346}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411514346}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411711536}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411711539}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411711539}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411712798}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411712798}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792411716203}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792411716203}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411716204}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792411716617}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792411716617}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792411791751}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411791751}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792411832029}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792411832031}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792411919815}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411919815}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792411944886}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411944886}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792411979723}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411979723}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792411979724}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792411979724}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792412041751}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412041751}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792412041752}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412041752}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792412130454}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412130454}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792412137893}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412137893}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792412367246}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412367246}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792412479773}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412479773}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1792412638440}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412638441}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792412640019}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792412640019}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412640019}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792412643558}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792412643558}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792412643559}
+{"level":"debug","message":"[vite] invalidate /src/pages/merchant/MerchantSettingsPage.tsx: Could not Fast Refresh (\"loadProfile\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792412707835}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1792412707835}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792412707835}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792412709104}
+{"level":"debug","message":"[vite] hot updated: /src/AppRouter.tsx","timestamp":1792412709104}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantLayout.tsx","timestamp":1792412709104}
+{"level":"debug","message":"[vite] connected.","timestamp":1792413061870}
+{"level":"debug","message":"[vite] connected.","timestamp":1792413273636}

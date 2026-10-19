@@ -44,8 +44,9 @@ import { formatAddr } from '@/lib/ui'
 export interface MenuItem {
   id: string
   name: string
-  price: string   // human USDC string, e.g. "2" or "2.50"
+  price: string      // human USDC string, e.g. "2" or "2.50"
   emoji: string
+  imageUrl?: string  // optional photo URL set in Settings
   unavailable?: boolean  // set in Settings; hidden from Sell screen
 }
 
@@ -157,11 +158,15 @@ function sanitizeMenuItem(item: unknown): MenuItem | null {
   if (typeof o.id !== 'string' || !o.id.trim()) return null
   if (typeof o.name !== 'string' || !o.name.trim()) return null
   if (!isValidMenuPrice(o.price)) return null
+  const imageUrl = typeof o.imageUrl === 'string' && o.imageUrl.trim().startsWith('http')
+    ? o.imageUrl.trim() : undefined
   return {
     id: o.id,
     name: o.name,
     price: String(o.price).trim(),
     emoji: typeof o.emoji === 'string' ? o.emoji : '🍽',
+    imageUrl,
+    unavailable: typeof o.unavailable === 'boolean' ? o.unavailable : false,
   }
 }
 
@@ -273,7 +278,16 @@ function MenuCard({
         onClick={() => onAdd(item)}
         className="w-full p-4 flex flex-col items-center gap-2 active:bg-emerald-50"
       >
-        <span className="text-3xl">{item.emoji}</span>
+        {item.imageUrl ? (
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="w-14 h-14 rounded-xl object-cover border border-slate-100"
+            onError={e => { (e.currentTarget).style.display = 'none' }}
+          />
+        ) : (
+          <span className="text-3xl">{item.emoji}</span>
+        )}
         <span className="font-semibold text-slate-800 text-sm">{item.name}</span>
         <span className="text-xs text-slate-500 flex items-center gap-1">
           <TokenUSDC variant="branded" size={12} /> {item.price} USDC

@@ -91,20 +91,22 @@ export function CustomerLayout() {
         TESTNET — Arc Testnet (chain {ARC_TESTNET_ID}) — No real funds
       </div>
 
-      {/* Header — logo links to "/" (home) */}
-      <header className="px-4 pt-4 pb-3 flex items-center justify-between max-w-lg mx-auto w-full">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm">
-            <Receipt size={15} className="text-white" />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-bold text-slate-900 leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-sm border-b border-slate-100 px-4 py-3">
+        <div className="flex items-center justify-between max-w-lg mx-auto">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm">
+              <Receipt size={15} className="text-white" />
+            </div>
+            <p
+              className="text-base font-bold text-slate-900 leading-none"
+              style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.02em' }}
+            >
               ArcReceipt
             </p>
-            <p className="text-xs text-slate-400 leading-tight">Checkout on Arc Testnet</p>
-          </div>
-        </Link>
-        <ConnectKitButton />
+          </Link>
+          <ConnectKitButton />
+        </div>
       </header>
 
       {/* Nav — Home + Verify + My Payments. Hidden on /pay/ and /receipt/ */}

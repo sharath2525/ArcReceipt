@@ -15,7 +15,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import {
   Settings, Info, Plus, Pencil, Trash2, ChevronUp, ChevronDown,
-  Check, X, GripVertical, AlertCircle, EyeOff, Eye,
+  Check, X, GripVertical, AlertCircle, EyeOff, Eye, Receipt,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
@@ -29,9 +29,37 @@ import { parseUsdc } from '@/onchain-money'
 export interface MenuItem {
   id: string
   name: string
-  price: string   // human USDC string e.g. "2.50"
+  price: string      // human USDC string e.g. "2.50"
   emoji: string
+  imageUrl?: string  // optional URL to an item photo
   unavailable?: boolean
+}
+
+// ── Business profile ──────────────────────────────────────────────────────────
+
+export interface BusinessProfile {
+  name: string
+  logoUrl: string
+}
+
+function profileKey(account: string): string {
+  return `arc-receipt:profile:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${account.toLowerCase()}`
+}
+
+export function loadProfile(account: string): BusinessProfile {
+  try {
+    const raw = localStorage.getItem(profileKey(account))
+    if (!raw) return { name: '', logoUrl: '' }
+    const p = JSON.parse(raw) as Partial<BusinessProfile>
+    return {
+      name: typeof p.name === 'string' ? p.name.trim() : '',
+      logoUrl: typeof p.logoUrl === 'string' ? p.logoUrl.trim() : '',
+    }
+  } catch { return { name: '', logoUrl: '' } }
+}
+
+export function saveProfile(account: string, profile: BusinessProfile): void {
+  try { localStorage.setItem(profileKey(account), JSON.stringify(profile)) } catch { /**/ }
 }
 
 // ── Storage helpers (same keys as SellPage) ───────────────────────────────────
@@ -69,6 +97,7 @@ function sanitizeMenuItem(item: unknown): MenuItem | null {
     name: o.name,
     price: String(o.price).trim(),
     emoji: typeof o.emoji === 'string' ? o.emoji : '🍽',
+    imageUrl: typeof o.imageUrl === 'string' && o.imageUrl.trim() ? o.imageUrl.trim() : undefined,
     unavailable: typeof o.unavailable === 'boolean' ? o.unavailable : false,
   }
 }
@@ -107,8 +136,17 @@ function MenuRow({
       {/* Drag handle (visual only) */}
       <GripVertical size={14} className="text-slate-300 shrink-0 cursor-grab" />
 
-      {/* Emoji */}
-      <span className="text-xl w-7 text-center shrink-0">{item.emoji}</span>
+      {/* Image or emoji */}
+      {item.imageUrl ? (
+        <img
+          src={item.imageUrl}
+          alt={item.name}
+          className="w-9 h-9 rounded-lg object-cover shrink-0 border border-slate-100"
+          onError={e => { (e.currentTarget).style.display = 'none' }}
+        />
+      ) : (
+        <span className="text-xl w-9 text-center shrink-0">{item.emoji}</span>
+      )}
 
       {/* Name + price */}
       <div className="flex-1 min-w-0">
@@ -167,9 +205,11 @@ function EditForm({
   onCancel: () => void
   isNew: boolean
 }) {
-  const [name,  setName]  = useState(initial.name ?? '')
-  const [price, setPrice] = useState(initial.price ?? '')
-  const [emoji, setEmoji] = useState(initial.emoji ?? '🍽')
+  const [name,     setName]     = useState(initial.name ?? '')
+  const [price,    setPrice]    = useState(initial.price ?? '')
+  const [emoji,    setEmoji]    = useState(initial.emoji ?? '🍽')
+  const [imageUrl, setImageUrl] = useState(initial.imageUrl ?? '')
+  const [imgOk,    setImgOk]    = useState(!!initial.imageUrl)
 
   const handleSave = useCallback(() => {
     if (!name.trim()) { toast.error('Name is required'); return }
@@ -177,24 +217,55 @@ function EditForm({
       const raw = parseUsdc(price.trim())
       if (raw <= 0n) { toast.error('Price must be greater than zero'); return }
     } catch { toast.error('Invalid price — enter a positive decimal number'); return }
-    onSave({ name: name.trim(), price: price.trim(), emoji: emoji || '🍽' })
-  }, [name, price, emoji, onSave])
+    onSave({
+      name: name.trim(),
+      price: price.trim(),
+      emoji: emoji || '🍽',
+      imageUrl: imageUrl.trim() || undefined,
+    })
+  }, [name, price, emoji, imageUrl, onSave])
 
   return (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-2.5">
       <p className="text-xs font-semibold text-emerald-800">{isNew ? 'Add item' : 'Edit item'}</p>
-      <div className="flex gap-2">
-        <input
-          value={emoji} onChange={e => setEmoji(e.target.value)}
-          className="w-11 text-center rounded-lg border border-slate-200 bg-white py-2 text-base focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          maxLength={2} placeholder="🍽" aria-label="Emoji"
-        />
+
+      {/* Name row with emoji/image preview */}
+      <div className="flex gap-2 items-center">
+        {/* Preview: shows image if URL is valid, else emoji input */}
+        {imageUrl && imgOk ? (
+          <img
+            src={imageUrl}
+            alt="preview"
+            className="w-11 h-11 rounded-lg object-cover border border-slate-200 shrink-0"
+            onError={() => setImgOk(false)}
+          />
+        ) : (
+          <input
+            value={emoji} onChange={e => setEmoji(e.target.value)}
+            className="w-11 text-center rounded-lg border border-slate-200 bg-white py-2 text-base focus:outline-none focus:ring-2 focus:ring-emerald-400 shrink-0"
+            maxLength={2} placeholder="🍽" aria-label="Emoji"
+          />
+        )}
         <input
           value={name} onChange={e => setName(e.target.value)}
           className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
           placeholder="Item name" aria-label="Item name"
         />
       </div>
+
+      {/* Image URL */}
+      <div>
+        <input
+          value={imageUrl}
+          onChange={e => { setImageUrl(e.target.value); setImgOk(true) }}
+          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          placeholder="Photo URL (optional) — e.g. https://…/burger.jpg"
+          aria-label="Item photo URL"
+        />
+        <p className="text-xs text-slate-400 mt-1">Paste any image URL. Leave empty to use emoji.</p>
+      </div>
+
+      {/* Price */}
       <div className="flex items-center gap-2">
         <TokenUSDC variant="branded" size={14} />
         <input
@@ -204,6 +275,7 @@ function EditForm({
           placeholder="0.00 USDC" aria-label="Price in USDC"
         />
       </div>
+
       <div className="flex gap-2">
         <button onClick={handleSave}
           className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors">
@@ -231,6 +303,14 @@ export default function MerchantSettingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingNew, setAddingNew] = useState(false)
 
+  // Business profile
+  const [profile, setProfile] = useState<BusinessProfile>(() =>
+    address ? loadProfile(address) : { name: '', logoUrl: '' }
+  )
+  const [profileName,    setProfileName]    = useState(() => address ? loadProfile(address).name : '')
+  const [profileLogoUrl, setProfileLogoUrl] = useState(() => address ? loadProfile(address).logoUrl : '')
+  const [logoPreviewOk,  setLogoPreviewOk]  = useState(true)
+
   // When the connected wallet changes, reload the menu for the new address.
   // This is an intentional synchronisation with sessionStorage (an external
   // system), so setState-in-effect is the correct pattern here.
@@ -239,6 +319,11 @@ export default function MerchantSettingsPage() {
     setMenu(address ? loadMenu(address) : DEFAULT_MENU)
     setEditingId(null)
     setAddingNew(false)
+    const p = address ? loadProfile(address) : { name: '', logoUrl: '' }
+    setProfile(p)
+    setProfileName(p.name)
+    setProfileLogoUrl(p.logoUrl)
+    setLogoPreviewOk(true)
   }
 
   // Persist whenever menu changes
@@ -293,6 +378,14 @@ export default function MerchantSettingsPage() {
     toast.success('Menu reset to defaults')
   }, [])
 
+  const handleSaveProfile = useCallback(() => {
+    if (!address) return
+    const p: BusinessProfile = { name: profileName.trim(), logoUrl: profileLogoUrl.trim() }
+    saveProfile(address, p)
+    setProfile(p)
+    toast.success('Business profile saved')
+  }, [address, profileName, profileLogoUrl])
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -301,6 +394,67 @@ export default function MerchantSettingsPage() {
           Settings
         </h1>
         <p className="text-sm text-slate-500 mt-0.5">Workspace configuration and menu presets</p>
+      </div>
+
+      {/* Business profile */}
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center shrink-0">
+            {profile.logoUrl && logoPreviewOk ? (
+              <img
+                src={profile.logoUrl}
+                alt={profile.name || 'Logo'}
+                className="w-full h-full object-cover"
+                onError={() => setLogoPreviewOk(false)}
+              />
+            ) : (
+              <Receipt size={14} className="text-slate-400" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">
+              {profile.name || 'Business profile'}
+            </p>
+            <p className="text-xs text-slate-400">Shown in the merchant header</p>
+          </div>
+        </div>
+        <div className="px-4 py-3 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-1">Business name</label>
+            <input
+              value={profileName}
+              onChange={e => setProfileName(e.target.value)}
+              placeholder="e.g. Sharath's Café"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-1">Logo URL</label>
+            <div className="flex gap-2 items-center">
+              {profileLogoUrl && logoPreviewOk && (
+                <img
+                  src={profileLogoUrl}
+                  alt="logo preview"
+                  className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+                  onError={() => setLogoPreviewOk(false)}
+                />
+              )}
+              <input
+                value={profileLogoUrl}
+                onChange={e => { setProfileLogoUrl(e.target.value); setLogoPreviewOk(true) }}
+                placeholder="https://…/logo.png"
+                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition"
+              />
+            </div>
+            <p className="text-xs text-slate-400 mt-1">Paste any image URL. Leave empty to use the default icon.</p>
+          </div>
+          <button
+            onClick={handleSaveProfile}
+            className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Check size={14} /> Save profile
+          </button>
+        </div>
       </div>
 
       {/* Deployment info */}
