@@ -703,3 +703,275 @@ The workspace shows "Merchant address not configured" until this is set.
 - **sessionStorage only**: History does not persist across devices. On first load of a new browser/device, history re-scans from the deployment block. This is stated in the scan progress banner.
 - **RPC range limits unknown**: We do not assert a specific per-provider block-range cap. 2,000 blocks is a conservative choice. If a provider enforces a tighter limit, the chunk will fail and be recorded in failedRanges for retry.
 - **getBlock calls per unique block**: For RequestCreated events, we fetch the block to get its timestamp. This is one extra RPC call per unique block that contains a created event. For a merchant with many orders in one block, this is one call; for orders spread across blocks it scales with unique block count. This is acceptable for the expected transaction volume.
+
+---
+
+## PART 1 (IMPROVEMENTS) — REPORTING DATA AND PAYMENT-RECOVERY GAPS (2026-10-18)
+
+### Architecture decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| `DEPLOYMENT_BLOCK = 67_462_931` (exact) | Verified from deploy TX receipt; prior hardcoded `2_900_000n` was a placeholder lower-bound from an earlier branch. Centralized in `src/lib/deployment.ts`. |
+| Typed `parseAbiItem` event overload for all getLogs | Avoids raw-topic cast that was silently dropped on branch switch; viem builds topic-0+indexed filters correctly |
+| `isComplete` gated on scanMode==='full' AND head reached | `isComplete` on a recent-only scan was misleading — today dashboard could show "complete" when it only saw last N blocks |
+| Generation counter cancels stale scan publishes | If a new scan starts while an old chunk is in-flight, the old chunk's results are discarded instead of merging into the new state |
+| sessionStorage checkout state scoped by chain+contract+account+requestId | Persists approveHash/payHash/phase across refresh without cross-request or cross-account leakage |
+| USDC allowance pre-check before approve step | If allowance already >= amount (leftover from previous partial flow), skip approve and jump straight to pay |
+| Fresh-browser receipt TX recovery via getLogs | `payTxHash` in router state is a same-session hint only; on fresh load, recover from PaymentRecorded(id=N) getLogs scan |
+| `parseUsdc` strict unsigned-decimal-only | `/^\d+(\.\d*)?$/` rejects negatives, hex (0x), scientific notation (1e6), signs (+) without relying on `isNaN` |
+| Cart/menu price sanitized on load | `sanitizeMenuItem` / `sanitizeCartItem` run on every sessionStorage read; invalid items are dropped; empty menu falls back to DEFAULT_MENU |
+| `useMerchantAllRequests` shared hook | Provides contract-paginated request list + live status map used by MerchantTodayPage for awaiting count |
+
+### Files added this session
+
+| File | Purpose |
+|------|---------|
+| `src/lib/deployment.ts` | Single source of truth for deployment metadata: block 67,462,931, TX hash, chain ID, contract address |
+| `src/lib/use-merchant-requests.ts` | `useMerchantAllRequests` hook: getMerchantRequests pagination + live status map for awaiting-count display |
+
+### Files changed this session
+
+| File | Changes |
+|------|---------|
+| `src/lib/use-event-history.ts` | A1: typed events + strict post-decode validation; A2: DEPLOYMENT_BLOCK from deployment.ts; A3: isComplete only when scanMode=full+head; A4: generation counter, no timestamp-zero, cache v2 |
+| `src/components/MyReceipts.tsx` | A1+A2: same typed events + deployment block; cache v2 |
+| `src/components/PublicCheckout.tsx` | B: sessionStorage checkout state persistence; allowance pre-check to skip approve when sufficient |
+| `src/components/PublicReceipt.tsx` | B: fresh-browser TX hash recovery via typed getLogs(PaymentRecorded, id=N) |
+| `src/onchain-money.ts` | C: strict unsigned-decimal regex rejects negatives/hex/sci-notation |
+| `src/components/SellPage.tsx` | C: sanitizeMenuItem/sanitizeCartItem on sessionStorage load; strict parseUsdc in addCustom and menu edit save |
+| `src/pages/merchant/MerchantTodayPage.tsx` | A5: useMerchantAllRequests for awaiting count; isRecentComplete awareness; remove unused ARC_TESTNET_ID import |
+| `src/pages/merchant/MerchantReportsPage.tsx` | D: remove hardcoded 2_900_000n from user-facing text; isComplete awareness |
+
+### Part 1 (improvements) checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| I1-A1 | getLogs uses typed parseAbiItem events; args filter for merchant/payer | ✅ | use-event-history.ts + MyReceipts.tsx |
+| I1-A1b | Post-decode: contract addr, merchant match, id>0, amount>0 validated | ✅ | Both files |
+| I1-A2 | DEPLOYMENT_BLOCK = 67,462,931 from deployment.ts everywhere | ✅ | deployment.ts centralizes it |
+| I1-A3 | isComplete only when scanMode=full AND head reached AND no failed ranges | ✅ | EventHistoryState |
+| I1-A3b | isRecentComplete separate flag for recent-scan completeness | ✅ | use-event-history.ts |
+| I1-A4 | Generation counter prevents stale scan publishing | ✅ | scanGenRef pattern |
+| I1-A4b | Missing block timestamps leave entry absent (no zero substitution) | ✅ | continue on ts===undefined |
+| I1-A4c | Cache schema v2 with field validation; v1 entries evicted on load | ✅ | CACHE_VERSION bump + field checks |
+| I1-A5 | Awaiting list uses getMerchantRequests pagination (not event scan alone) | ✅ | useMerchantAllRequests in MerchantTodayPage |
+| I1-B1 | approveHash+payHash+phase persisted to sessionStorage keyed by chain+contract+account+requestId | ✅ | PublicCheckout.tsx |
+| I1-B2 | Checkout state restored after refresh when request is still open | ✅ | restoredRef guard |
+| I1-B3 | Allowance pre-check: skip approve if USDC allowance >= req.amount | ✅ | useReadContract allowance + check |
+| I1-B4 | Fresh-browser PublicReceipt recovers payTxHash via getLogs(id=N) | ✅ | PublicReceipt.tsx recovery loop |
+| I1-B5 | Recovery shows "Recovering transaction from chain…" while in-flight | ✅ | recovering state + spinner |
+| I1-C1 | parseUsdc rejects negatives ("-1" throws) | ✅ | /^\d+(\.\d*)?$/ regex |
+| I1-C2 | parseUsdc rejects hex ("0xff" throws) | ✅ | same regex (no x allowed) |
+| I1-C3 | parseUsdc rejects scientific notation ("1e6" throws) | ✅ | same regex (no e allowed) |
+| I1-C4 | SellPage menu/cart loaded from sessionStorage sanitized | ✅ | sanitizeMenuItem + sanitizeCartItem |
+| I1-C5 | Custom amount entry: parseUsdc as primary guard (not parseFloat) | ✅ | addCustom uses parseUsdc first |
+| I1-C6 | Menu edit save: strict parseUsdc guard | ✅ | MenuCard onClick |
+| I1-D1 | MerchantDashboard.handleCreateSubmit: parsed===0n blocks submission | ✅ | pre-existing, now correct with new parseUsdc |
+| I1-D2 | MerchantReportsPage: no hardcoded 2_900_000n in user-facing text | ✅ | uses scannedBlock.toString() instead |
+| I1-X | Lint/typecheck clean | ✅ | 0 errors 0 warnings |
+| I1-T1 | Live wallet test: awaiting count shows old open requests | ⬜ | requires requests older than 5k-block window |
+| I1-T2 | Live wallet test: refresh mid-checkout restores approve/pay state | ⬜ | requires live TX in progress |
+| I1-T3 | Live wallet test: fresh-browser receipt URL shows TX link | ⬜ | requires a paid request + fresh browser |
+| I1-T4 | parseUsdc: unit tests for all rejected inputs | ⬜ | Part 3 or separate test session |
+
+---
+
+## PART 2 (IMPROVEMENTS) — UX, LAYOUT AND NAVIGATION (2026-10-19)
+
+### Architecture decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| `LegacyRedirect` renders `HomePage` directly for bare `/` | Avoids redirect loop; legacy params still intercepted before `HomePage` renders |
+| Home page at `/` — rendered by `LegacyRedirect` when no params | No new route needed; all legacy URL handling stays in one file |
+| URL recogniser parses input as integer OR ArcReceipt URL shape | Accepts `/pay/N`, `/receipt/N`, `?request=N`, bare IDs; only ID extracted, not amounts |
+| `CustomerLayout` hides nav on `/pay/` and `/receipt/` | Those are QR-only pages; nav would add noise and obscure checkout |
+| "Back to payment #N" hint reads sessionStorage checkout keys | Detects active pending session without props; shown when user is off that page |
+| Presentation mode in `MerchantOrderDetailPage` | Full-screen QR + amount overlay; Escape/tap to close; live poll updates show Paid banner |
+| Settings menu management uses same storage keys as `SellPage` | Single source of truth; price edits in Settings propagate to Sell screen on next load |
+| `unavailable` flag on `MenuItem` — filtered in `SellPage` | Items hidden from Sell but preserved in menu; re-enabled via Settings |
+| Address reload on wallet change via state-during-render pattern | Avoids `setState-in-effect` lint error; correct React idiom for derived/external sync |
+
+### Files added this session
+
+| File | Purpose |
+|------|---------|
+| `src/pages/HomePage.tsx` | Public home: branding, receipt lookup, My Payments, Merchant entrance, How it works, contract trust info |
+
+### Files changed this session
+
+| File | Changes |
+|------|---------|
+| `src/pages/LegacyRedirect.tsx` | Bare "/" renders `HomePage` directly instead of redirecting to `/verify` |
+| `src/components/CustomerLayout.tsx` | Home nav item added; logo → "/" ; nav hidden on /pay/ /receipt/; "Back to payment #N" contextual hint |
+| `src/components/SellPage.tsx` | `unavailable` flag on `MenuItem`; Sell screen filters unavailable items; warning when all unavailable |
+| `src/pages/merchant/MerchantSettingsPage.tsx` | Full menu management: add/edit/remove/reorder/toggle availability; sample labels; reset to defaults |
+| `src/pages/merchant/MerchantOrderDetailPage.tsx` | Presentation mode overlay (full-screen QR+amount, Escape to close, paid banner); Present order button |
+| `src/components/PublicCheckout.tsx` | Full merchant address copyable in checkout; network label in preview rows |
+
+### Part 2 checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| P2A-1 | Home page at "/" with branding and flow explanation | ✅ | `HomePage.tsx` |
+| P2A-2 | Legacy query-string links still work (no interruption) | ✅ | `LegacyRedirect` intercepts before `HomePage` renders |
+| P2A-3 | Receipt lookup accepts request ID or ArcReceipt URL | ✅ | `parseInput()` — ID only extracted, amounts never trusted |
+| P2A-4 | My Payments link from home | ✅ | navigates to /payments |
+| P2A-5 | Merchant workspace entrance (explicit, not auto-detected) | ✅ | button → /merchant; gate checks wallet on entry |
+| P2A-6 | Clear network label on home page | ✅ | "Arc Testnet · Chain 5042002 · USDC" |
+| P2A-7 | No fake stats, no audit badges, no customer logos | ✅ | home page contains none |
+| P2A-8 | Studio attribution on home | ✅ | footer |
+| P2B-1 | Settings: add menu item | ✅ | `EditForm` in `MerchantSettingsPage` |
+| P2B-2 | Settings: edit menu item | ✅ | inline `EditForm` on row edit |
+| P2B-3 | Settings: remove menu item | ✅ | delete button per row |
+| P2B-4 | Settings: reorder menu items | ✅ | ChevronUp/Down per row |
+| P2B-5 | Settings: mark item unavailable (hidden from Sell) | ✅ | `unavailable` flag; EyeOff toggle |
+| P2B-6 | Settings: sample items clearly labelled | ✅ | "(sample)" next to default IDs |
+| P2B-7 | Settings: price edit never alters existing cart/snapshot | ✅ | cart items freeze price at add-time |
+| P2B-8 | Settings: corrupt/missing storage handled safely | ✅ | `sanitizeMenuItem` + DEFAULT_MENU fallback |
+| P2B-9 | SellPage: unavailable items hidden | ✅ | `.filter(item => !item.unavailable)` |
+| P2B-10 | SellPage: warning when all items unavailable | ✅ | amber banner |
+| P2C-1 | Order detail: presentation mode (full-screen QR + amount) | ✅ | `PresentationMode` overlay |
+| P2C-2 | Presentation mode: Escape or tap to close | ✅ | keydown listener + onClick overlay |
+| P2C-3 | Presentation mode: Paid banner when request paid | ✅ | `isPaid` prop → green banner |
+| P2C-4 | Order detail: Present order button (non-expired, non-cancelled) | ✅ | `!isCancelled && !expired` guard |
+| P2D-1 | Checkout: full merchant address readable and copyable | ✅ | full address + copy button in `RequestPreviewRows` |
+| P2D-2 | Checkout: network label in preview rows | ✅ | "Arc Testnet (5042002)" row |
+| P2E-1 | CustomerLayout: logo links to "/" (home) | ✅ | `<Link to="/">` |
+| P2E-2 | CustomerLayout: Home nav item | ✅ | `CUSTOMER_NAV` includes / |
+| P2E-3 | CustomerLayout: nav hidden on /pay/ and /receipt/ | ✅ | `isPayOrReceipt` guard |
+| P2E-4 | "Back to payment #N" contextual link when pending checkout exists | ✅ | `useActivePay` reads sessionStorage keys |
+| P2E-5 | Connecting wallet never shows merchant navigation | ✅ | `CustomerLayout` has no merchant routes |
+| P2E-6 | Merchant entrance always explicit (never auto-detected) | ✅ | home page button only; gate rechecks on entry |
+| P2X | Lint/typecheck clean | ✅ | 0 errors 0 warnings |
+| P2T-1 | Legacy ?request=N QR link opens checkout directly | ⬜ | requires live test |
+| P2T-2 | Fresh browser at "/" sees home; /pay/N still opens checkout | ⬜ | requires live test |
+| P2T-3 | Presentation mode: counter display, Escape closes | ⬜ | requires live test |
+| P2T-4 | Settings: add/edit/reorder/hide item reflects in Sell screen | ⬜ | requires live test |
+| P2T-5 | Customer wallet connection never reveals merchant nav | ⬜ | requires live test |
+| P2T-6 | "Back to payment" hint appears after navigating away mid-checkout | ⬜ | requires live pending TX |
+
+---
+
+## PART 3 (REPORTING) — DASHBOARD, REPORTS, EXPORT (2026-10-19)
+
+### Architecture decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Drill-down as inline panel per stat card | Keeps stat and records co-located; no extra route; collapses cleanly on mobile |
+| SVG bar chart (no chart library) | No dependency added; accessible via `<title>` + collapsible table fallback |
+| `DetailTable` joins createdEvents + paymentEvents by requestId | Single source of truth — no synthetic snapshots; current status from requestMap |
+| payTxHash extracted from `ev.key` (format `0xHASH-N`) | PaymentEvent.key already carries the txHash; no schema change needed |
+| Export CSV blocked with explicit partial override | Prevents silent partial totals being exported as final; user must choose |
+| Print: `hidden print:block` / `print:hidden` Tailwind classes | No extra route or page needed; browser native print with correct metadata |
+| `requestStatus()` uses live requestMap + current time | Current verified status, not end-of-day snapshot (which we cannot reconstruct) |
+| `now` removed from `DetailTable` props | Status resolution moved to `detailRows` useMemo in parent (correct separation) |
+
+### Files changed this session
+
+| File | Changes |
+|------|---------|
+| `src/pages/merchant/MerchantTodayPage.tsx` | Stat cards now expandable drill-downs showing underlying records per metric |
+| `src/pages/merchant/MerchantReportsPage.tsx` | Full rewrite: summary cards, SVG daily bar chart, detailed records table (search/filter/pagination/payer/status/explorer links), CSV export with completeness guard + formula-prefix sanitisation, print layout |
+
+### Part 3 checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| P3A-1 | Today: collected card drill-down (PaymentRecorded records) | ✅ | |
+| P3A-2 | Today: orders card drill-down (RequestCreated records) | ✅ | |
+| P3A-3 | Today: awaiting card drill-down (all open requests) | ✅ | |
+| P3A-4 | Today: month card drill-down (month payments) | ✅ | |
+| P3A-5 | Today: ~ prefix on incomplete values | ✅ | |
+| P3A-6 | Today: scan status (block / remaining) in banner | ✅ | |
+| P3A-7 | Today: empty state only when scan complete | ✅ | |
+| P3B-1 | Rollover: 1-minute tick keeps Today current | ✅ | unchanged from Part 1 |
+| P3B-2 | Rollover: visibilitychange forces re-render on tab resume | ✅ | unchanged from Part 1 |
+| P3B-3 | Half-open UTC intervals (start <= ts < nextStart) | ✅ | utc-periods.ts unchanged |
+| P3B-4 | Created-yesterday/paid-today counted correctly | ✅ | separate createdAt/paidAt filters |
+| P3C-1 | Reports: period picker (Today/Yesterday/This month/Last month/Custom) | ✅ | |
+| P3C-2 | Reports: summary cards (collected, payments, created) | ✅ | |
+| P3C-3 | Reports: ~ prefix when incomplete | ✅ | |
+| P3C-4 | Reports: SVG daily bar chart for month views | ✅ | |
+| P3C-5 | Reports: accessible chart table (collapsible `<details>`) | ✅ | |
+| P3C-6 | Reports: zero shown only after coverage complete | ✅ | prefix cleared only when isComplete |
+| P3C-7 | Reports: failed ranges stay distinguishable from zero | ✅ | ScanBanner unchanged |
+| P3C-8 | Reports: detailed records table (ID, created, paid, amount, payer, status) | ✅ | |
+| P3C-9 | Reports: receipt link per row | ✅ | |
+| P3C-10 | Reports: explorer link per row (payment TX) | ✅ | extracted from ev.key |
+| P3C-11 | Reports: request-ID search | ✅ | |
+| P3C-12 | Reports: status filter (all/paid/open/expired/cancelled) | ✅ | |
+| P3C-13 | Reports: date-filter type labelled (payment date vs creation date) | ✅ | toggle button with label |
+| P3C-14 | Reports: working pagination (10 rows/page, prev/next) | ✅ | |
+| P3C-15 | Reports: current verified status (no end-of-day snapshots) | ✅ | from requestMap live reads |
+| P3D-1 | Export CSV: blocked when incomplete, explicit partial override | ✅ | warning panel with "Export partial anyway" |
+| P3D-2 | Export CSV: merchant, network, contract, period, generated time | ✅ | header block |
+| P3D-3 | Export CSV: verified-through block reference | ✅ | |
+| P3D-4 | Export CSV: completeness flag and WARNING row when partial | ✅ | |
+| P3D-5 | Export CSV: exact amounts and identifiers | ✅ | |
+| P3D-6 | Export CSV: formula-prefix sanitisation (=, +, -, @, \t, \r) | ✅ | csvField() |
+| P3D-7 | Export CSV: proper quote-doubling escaping | ✅ | csvField() |
+| P3D-8 | Export CSV: local item descriptions excluded | ✅ | not in DetailRow; explicitly noted |
+| P3D-9 | Export CSV: not labelled as profit/tax/inventory | ✅ | labelled "Collected" |
+| P3D-10 | Print: merchant, network, contract, period, generated time | ✅ | print:block header |
+| P3D-11 | Print: completeness note in print output | ✅ | |
+| P3D-12 | Print: data table visible in print layout | ✅ | DetailTable not hidden |
+| P3E-1 | Shared history layer (useEventHistory) reused — no new scan | ✅ | |
+| P3E-2 | No full-scan restart on tab change | ✅ | hook unchanged |
+| P3E-3 | requestMap from useMerchantAllRequests for live status | ✅ | |
+| P3X | Lint/typecheck clean | ✅ | 0 errors 0 warnings |
+| P3T-1 | Two equal-total requests: pay only B; A stays unpaid after refresh | ⬜ | requires live test |
+| P3T-2 | Pay yesterday, shows in yesterday collected / today created | ⬜ | requires live test |
+| P3T-3 | Drill-down: stat card expands/collapses; records match total | ⬜ | requires live test |
+| P3T-4 | Export: partial CSV labelled; complete CSV without warning | ⬜ | requires live test |
+| P3T-5 | Print: opens browser print dialog with correct metadata | ⬜ | requires live test |
+| P3T-6 | Midnight UTC rollover: today selects new day without refresh | ⬜ | requires time-of-day test |
+| P3T-7 | Charts and drill-downs reconcile with summary totals | ⬜ | requires live data |
+| P3T-8 | Full-history "Load full history" scans and populates all periods | ⬜ | requires live test (long) |
+
+---
+
+## FINAL ASSESSMENT (Parts 1–3)
+
+### 1. What works (verified by build + lint)
+
+- **Part 1 (data correctness):** Typed ABI events, strict post-decode validation, correct deployment block (67,462,931), `isComplete` gated on full-scan-at-head, generation cancel guard, zero-timestamp prevention, cache v2 with field validation, `getMerchantRequests` pagination for awaiting count, checkout state persists across refresh, fresh-browser receipt TX recovery, `parseUsdc` strict unsigned-decimal, cart/menu sanitised on load.
+- **Part 2 (UX):** Public home page at `/`, receipt lookup with URL recognition, My Payments, explicit merchant entrance, CustomerLayout nav with home link, back-link for active checkout, presentation mode overlay in order detail, full merchant address copyable in checkout, settings with full menu management (add/edit/remove/reorder/hide).
+- **Part 3 (reporting):** Per-stat drill-down panels on Today, summary cards, SVG daily bar chart, detailed records table with search/status-filter/date-filter/pagination/payer/explorer links, CSV export with completeness guard and formula-prefix sanitisation, print layout.
+
+### 2. What was tested and results
+
+| Test | Method | Result |
+|------|--------|--------|
+| Lint (oxlint, all three parts) | Automated | 0 errors, 0 warnings |
+| TypeScript typecheck (tsc --noEmit) | Automated | 0 errors |
+| Dev server running | Process check (ps aux) | Running (PID 23382) |
+| All other tests | Require live testnet + two wallets | Not run |
+
+### 3. Required configuration
+
+| Variable | Purpose | Set? |
+|----------|---------|------|
+| `VITE_MERCHANT_ADDRESS` | Merchant wallet gate | Required — set in `.env` |
+| `VITE_APP_ORIGIN` | Public URL for QR/receipt links | Required for production |
+
+### 4. Remaining limitations
+
+- Live wallet tests (I1-T1 through I1-T3, P2T-1 through P2T-6, P3T-1 through P3T-8) require testnet USDC and two wallets — none have been run.
+- Full-history scan (65M blocks on Arc Testnet) will take several minutes in browser; progress is shown but cannot be accelerated.
+- `ev.key` TX hash extraction (format `0xHASH-N`) is correct only when the TX hash is exactly 66 chars; pending/null hashes produce no explorer link (correct behaviour).
+- Print layout uses browser print — complex table pagination between pages depends on browser.
+- `requestMap` status reads are batched via `useReadContracts`; very large order counts (>200) may produce many simultaneous RPC calls.
+- No database, no cross-device sync — all data is session-scoped via sessionStorage.
+
+### 5. Branch readiness
+
+**NOT ready to merge to production.** Reasons:
+- Live wallet tests not run (P3T-1 through P3T-8 and earlier P2T / I1 tests).
+- `VITE_APP_ORIGIN` must be set to the production URL before deploy.
+- Full-history scan has not been observed end-to-end on testnet.
+- No independent security review of the contract (deployed, not audited).
+
+**Ready for internal QA review on testnet.**
