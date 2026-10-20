@@ -1,4 +1,4 @@
-ng /**
+/**
  * onchain-money — self-contained USDC formatting helpers.
  * Replaces Arc Studio's injected @/onchain-money for production builds.
  *
