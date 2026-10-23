@@ -741,3 +741,46 @@
 {"level":"debug","message":"[vite] connected.","timestamp":1792585305276}
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792588097435}
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792692956634}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726047032}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726047033}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726049875}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726049875}
+{"level":"error","message":"[vite] ReferenceError: PAYMENT_RECORDED_ABI is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/components/PublicCheckout.tsx?t=1792726052889:89:1","timestamp":1792726054683,"stack":"ReferenceError: PAYMENT_RECORDED_ABI is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/components/PublicCheckout.tsx?t=1792726052889:89:1"}
+{"level":"error","message":"[vite] Failed to reload /src/components/PublicCheckout.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792726054683}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726055198}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726055198}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726057614}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726057614}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726059875}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726059875}
+{"level":"error","message":"[vite] Failed to reload /src/components/PublicCheckout.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1792726074590}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726075462}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726075462}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726078069}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726078069}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726091269}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726091269}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726102325}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726102325}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1792726105910}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726105911}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792726119118}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726119118}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792726124254}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726124254}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792726129839}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726129839}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792726134490}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726134490}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1792726144791}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726144791}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792726153991}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726153991}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792726156493}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726156493}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792726161738}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726161738}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792726177396}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726177396}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1792726181015}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792726181015}

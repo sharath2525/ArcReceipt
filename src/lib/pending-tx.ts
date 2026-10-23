@@ -8,7 +8,7 @@
  * only restores the hash so the UI can resume polling.
  */
 
-export type PendingAction = 'createRequest' | 'cancelRequest'
+export type PendingAction = 'createRequest' | 'cancelRequest' | 'pay'
 
 export interface PendingTx {
   chainId: number

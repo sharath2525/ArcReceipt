@@ -2,10 +2,15 @@
  * /merchant/orders/:requestId — Single order QR + detail view.
  * Reuses MerchantOrderView logic extracted from ArcReceiptApp.
  * Reads all data from chain — no sessionStorage dependency.
+ *
+ * Stage 1: management controls (QR, Present, Cancel, Next order) are only
+ * rendered when req.merchant matches MERCHANT_ADDRESS. If the URL is navigated
+ * to with another merchant's request ID, the order detail is shown in read-only
+ * mode with a "Not your order" notice instead of management controls.
  */
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useCallback, useEffect } from 'react'
-import { useReadContract } from 'wagmi'
+import { useReadContract, useAccount } from 'wagmi'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   ArrowLeft, CheckCircle, AlertCircle, Loader2, ExternalLink,
@@ -16,6 +21,7 @@ import {
   CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
   buildPaymentLink, buildReceiptLink, type OnchainRequest,
 } from '@/lib/contract'
+import { MERCHANT_ADDRESS } from '@/lib/merchant'
 import { formatUsdc } from '@/onchain-money'
 import { formatAddr, formatTs, statusMeta, isExpired } from '@/lib/ui'
 
@@ -117,6 +123,7 @@ export default function MerchantOrderDetailPage() {
 
 function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () => void }) {
   const navigate = useNavigate()
+  const { address } = useAccount()
   const [copied, setCopied] = useState(false)
   const [presentation, setPresentation] = useState(false)
 
@@ -202,6 +209,15 @@ function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () 
   const meta = statusMeta(req.status, req)
   const statusLabel = isCancelled ? 'Cancelled' : isPaid ? 'Paid' : expired ? 'Expired' : meta.label
 
+  // Stage 1: merchant scope guard — management controls are only shown when
+  // req.merchant matches the configured MERCHANT_ADDRESS AND the connected
+  // wallet is the merchant. If someone navigates to another merchant's order
+  // URL, they see the order in read-only mode.
+  const isMerchantOrder =
+    MERCHANT_ADDRESS !== null &&
+    req.merchant.toLowerCase() === MERCHANT_ADDRESS.toLowerCase() &&
+    address?.toLowerCase() === MERCHANT_ADDRESS.toLowerCase()
+
   return (
     <div className="space-y-4">
       {/* Presentation mode overlay */}
@@ -265,8 +281,16 @@ function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () 
         </div>
       </div>
 
-      {/* QR — always shown so merchant can reshare */}
-      {!isCancelled && (
+      {/* Stage 1: not-your-order notice when req.merchant != configured merchant */}
+      {!isMerchantOrder && MERCHANT_ADDRESS !== null && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-center gap-2 text-xs text-amber-700">
+          <AlertCircle size={14} className="shrink-0" />
+          This request belongs to a different merchant address. Management controls are not available.
+        </div>
+      )}
+
+      {/* QR — shown for merchant's own orders only; receipt link always shown */}
+      {!isCancelled && isMerchantOrder && (
         <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-4">
           <div className="flex items-center gap-2">
             <QrCode size={16} className="text-emerald-600" />
@@ -315,16 +339,30 @@ function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () 
         </div>
       )}
 
-      {/* Next order — navigates to Sell without cancelling this request */}
-      <button
-        onClick={() => void navigate('/merchant')}
-        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-      >
-        <RefreshCw size={14} /> Next order
-      </button>
-      <p className="text-xs text-slate-400 text-center">
-        Starts a new order. This request #{requestId.toString()} remains open on-chain.
-      </p>
+      {/* Receipt link — always available regardless of merchant ownership */}
+      {isPaid && !isMerchantOrder && (
+        <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-2">
+          <a href={receiptLink} target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 hover:underline">
+            <ExternalLink size={11} /> View receipt on explorer
+          </a>
+        </div>
+      )}
+
+      {/* Next order — only shown for merchant's own orders */}
+      {isMerchantOrder && (
+        <button
+          onClick={() => void navigate('/merchant')}
+          className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+        >
+          <RefreshCw size={14} /> Next order
+        </button>
+      )}
+      {isMerchantOrder && (
+        <p className="text-xs text-slate-400 text-center">
+          Starts a new order. This request #{requestId.toString()} remains open on-chain.
+        </p>
+      )}
     </div>
   )
 }

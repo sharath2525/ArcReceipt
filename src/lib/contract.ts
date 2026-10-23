@@ -108,12 +108,18 @@ function publicOrigin(): string {
   return ''
 }
 
-/** Build a shareable payment link for a given request ID. */
+/** Build a shareable payment link for a given request ID.
+ *  Produces the canonical path-based URL /pay/:id.
+ *  Legacy query-string URLs (?request=N) are still handled by LegacyRedirect
+ *  for backward compatibility with printed QR codes, but all new links use
+ *  the path-based form so the customer checkout and legacy redirect are
+ *  both exercised correctly.
+ */
 export function buildPaymentLink(id: bigint | number | string): string {
-  return `${publicOrigin()}?request=${id}`
+  return `${publicOrigin()}/pay/${id}`
 }
 
-/** Build a receipt/verify link. */
+/** Build a receipt/verify link. Produces the canonical path-based URL /receipt/:id. */
 export function buildReceiptLink(id: bigint | number | string): string {
-  return `${publicOrigin()}?request=${id}&view=receipt`
+  return `${publicOrigin()}/receipt/${id}`
 }

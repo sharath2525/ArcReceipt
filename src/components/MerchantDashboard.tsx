@@ -429,10 +429,11 @@ function RequestRowWithData({ id, onCancel, cancellingId, cancelStatus, statusFi
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI,
     functionName: 'getRequest', args: [id],
     chainId: ARC_TESTNET_ID,
-    // No per-row polling — the paginated list refreshes every 4 s.
-    // Individual rows use a long staleTime to avoid a polling storm with
-    // many rows mounted simultaneously.
-    query: { staleTime: 30_000, refetchOnMount: true },
+    // Stage 1 fix: staleTime reduced to 5 s so rows update promptly when
+    // another browser pays this request. Combined with refetchInterval: 8_000
+    // this ensures paid status propagates within ~5-8 s without overwhelming
+    // the RPC when many rows are mounted.
+    query: { staleTime: 5_000, refetchInterval: 8_000, refetchOnMount: true },
   })
   const req = rawReq as OnchainRequest | undefined
 
@@ -595,18 +596,36 @@ export function MerchantDashboard({
     timeout: 60_000,                   // 60 s timeout
   })
 
-  // Process receipt outcome exactly once per hash
+  // Process receipt outcome exactly once per hash.
+  //
+  // Stage 1 fix: when the receipt is 'success' but extractIdFromReceipt returns
+  // null (no RequestCreated event found), do NOT mark creation as successful.
+  // This guards against replacement TXs that were mined without the intended
+  // contract call. Show the explorer link and keep the pending banner so the
+  // merchant can investigate instead of clearing tracking prematurely.
   const processedHash = useRef<string | null>(null)
   useEffect(() => {
     if (!createHash || !createReceipt || processedHash.current === createHash) return
     processedHash.current = createHash
 
     if (createReceipt.status === 'success') {
-      setCreateTxStatus('success')
       const id = extractIdFromReceipt(createReceipt)
-      if (id !== null) toast.success(`Request #${id} created`)
-      clearPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address ?? '', 'createRequest')
-      void refetch()
+      if (id !== null) {
+        // Confirmed: RequestCreated event found with a valid ID
+        setCreateTxStatus('success')
+        setCreateMeta(prev => prev ? { ...prev, id: id.toString() } : { id: id.toString() })
+        toast.success(`Request #${id} created`)
+        clearPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address ?? '', 'createRequest')
+        void refetch()
+      } else {
+        // TX succeeded but RequestCreated event absent — treat as unresolved.
+        // Do NOT clear pending tracking. Show a timeout-like banner with explorer link.
+        setCreateTxStatus('rpc-error')
+        toast.error('TX confirmed but request event not found — check explorer')
+        // Note: we intentionally do NOT set processedHash here so a later re-render
+        // after a refetch that yields the correct receipt can still process it.
+        processedHash.current = null
+      }
     } else {
       // status === 'reverted'
       setCreateTxStatus('reverted')
@@ -678,9 +697,23 @@ export function MerchantDashboard({
   // ── Cancel ─────────────────────────────────────────────────────────────────
   const { writeContract: doCancel, isPending: isCancelWallet } = useWriteContract()
   const [cancellingId, setCancellingId] = useState<bigint | null>(null)
-  const [cancelHash, setCancelHash]     = useState<`0x${string}` | undefined>()
+  // Stage 1 fix: restore persisted cancel hash on mount so a refresh during
+  // cancel confirmation doesn't lose tracking.
+  const [cancelHash, setCancelHash] = useState<`0x${string}` | undefined>(() => {
+    if (!address) return undefined
+    const saved = loadPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'cancelRequest')
+    return saved?.hash
+  })
   const [cancelStatus, setCancelStatus] =
-    useState<'idle' | 'wallet' | 'confirming' | 'success' | 'reverted' | 'error'>('idle')
+    useState<'idle' | 'wallet' | 'confirming' | 'success' | 'reverted' | 'error'>(() => {
+      if (!address) return 'idle'
+      const saved = loadPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'cancelRequest')
+      if (saved?.hash) {
+        // Restore the cancelled ID from meta if available
+        return 'confirming'
+      }
+      return 'idle'
+    })
 
   const { data: cancelReceipt, isSuccess: cancelReceiptOk, isError: cancelReceiptErr } =
     useWaitForTransactionReceipt({
@@ -697,17 +730,21 @@ export function MerchantDashboard({
       if (cancelReceipt.status === 'success') {
         setCancelStatus('success')
         toast.success(`Request #${cancellingId} cancelled`)
+        // Stage 1: clear persisted cancel tracking on confirmed success
+        if (address) clearPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'cancelRequest')
         void refetch()
       } else {
         setCancelStatus('reverted')
         toast.error('Cancel transaction reverted')
+        if (address) clearPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'cancelRequest')
       }
     }
     if (cancelReceiptErr) {
       setCancelStatus('error')
       toast.error('Could not confirm cancel — check explorer')
+      // Do NOT clear on error — keep hash so user can check explorer
     }
-  }, [cancelHash, cancelReceipt, cancelReceiptOk, cancelReceiptErr, cancellingId, refetch])
+  }, [cancelHash, cancelReceipt, cancelReceiptOk, cancelReceiptErr, cancellingId, refetch, address])
 
   const handleCancel = useCallback((id: bigint) => {
     if (cancelStatus === 'confirming' || isCancelWallet) return
@@ -717,6 +754,14 @@ export function MerchantDashboard({
       { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'cancelRequest', args: [id], chainId: ARC_TESTNET_ID },
       {
         onSuccess: (txHash) => {
+          // Stage 1 fix: persist cancel hash so refresh restores tracking
+          if (address) {
+            savePendingTx({
+              chainId: ARC_TESTNET_ID, contract: CONTRACT_ADDRESS,
+              account: address, action: 'cancelRequest',
+              hash: txHash, meta: { id: id.toString() },
+            })
+          }
           setCancelHash(txHash)
           setCancelStatus('confirming')
         },
@@ -728,7 +773,7 @@ export function MerchantDashboard({
         },
       }
     )
-  }, [cancelStatus, isCancelWallet, doCancel])
+  }, [cancelStatus, isCancelWallet, doCancel, address])
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const hasRequests = allIds.length > 0

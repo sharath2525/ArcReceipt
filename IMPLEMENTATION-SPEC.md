@@ -975,3 +975,59 @@ The workspace shows "Merchant address not configured" until this is set.
 - No independent security review of the contract (deployed, not audited).
 
 **Ready for internal QA review on testnet.**
+
+---
+
+## STAGE 1 — PAYMENT, RECEIPT AND ORDER CORRECTNESS (2026-10-23)
+
+### Changes made
+
+| Area | Change | File |
+|------|--------|------|
+| `contract.ts` | `buildPaymentLink`/`buildReceiptLink` now emit path-based `/pay/:id` / `/receipt/:id` URLs. Legacy `?request=N` still handled by LegacyRedirect. | `src/lib/contract.ts` |
+| `pending-tx.ts` | Added `'pay'` to `PendingAction` union for future pay-action persistence. | `src/lib/pending-tx.ts` |
+| `PublicCheckout` | `validatePaymentReceipt()`: validates contract address, topic-0, id (topic-1), merchant (topic-2), payer (topic-3) and amount (data[0]) before calling `onPaid()`. Replacement TX confirmed without `PaymentRecorded` → phase=`'unresolved'`, amber warning, no success claimed. | `src/components/PublicCheckout.tsx` |
+| `PublicCheckout` | `reportedHash.current` reset to `null` on `requestId` change so route A→B cannot carry A's success guard. | same |
+| `PublicCheckout` | Added `'unresolved'` phase and render state. | same |
+| `MerchantDashboard` | Create receipt: when `extractIdFromReceipt` returns `null` on a `status=success` TX, do NOT mark as success; show `rpc-error` banner + explorer link; leave `processedHash.current = null` so a later valid receipt can still fire. | `src/components/MerchantDashboard.tsx` |
+| `MerchantDashboard` | Cancel: persist `cancelHash` to `pending-tx.ts` on submission; restore on mount; clear on confirmed success/revert; retain on RPC error. | same |
+| `MerchantDashboard` | `RequestRowWithData`: `staleTime` reduced from 30 s to 5 s; added `refetchInterval: 8_000` so a paid row updates within ~5–8 s when another browser pays. | same |
+| `MerchantOrderDetailPage` | Added `isMerchantOrder` guard: QR block, Present order, Next order button and footnote only render when `req.merchant === MERCHANT_ADDRESS` and connected wallet is merchant. Other-merchant orders show read-only view with a notice. | `src/pages/merchant/MerchantOrderDetailPage.tsx` |
+
+### What was NOT changed (already correct or out of scope)
+
+- Contract unchanged, 41/41 tests still passing (no recompile needed).
+- `PublicReceipt` recovery loop: `args.id === requestId` comparison is bigint===bigint from the same viem context — no equality bug.
+- `SellPage` confirmed snapshot: in the Router flow `onOrderCreated` is always provided, so `saveConfirmedOrder` is never called; no cross-order leak possible.
+- `use-event-history` typed events, deployment block, generation counter — all correct from prior session.
+- Legacy URL compatibility preserved (LegacyRedirect handles `?request=N`).
+
+### Stage 1 checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| S1-1 | `buildPaymentLink`/`buildReceiptLink` emit path-based canonical URLs | ✅ | `/pay/N`, `/receipt/N` |
+| S1-2 | Legacy `?request=N` QRs still work | ✅ | LegacyRedirect unchanged |
+| S1-3 | PublicCheckout validates PaymentRecorded (id+merchant+payer+amount) before `onPaid()` | ✅ | `validatePaymentReceipt()` function |
+| S1-4 | Replacement TX success without event → `unresolved` not `done` | ✅ | phase logic in effect |
+| S1-5 | `reportedHash.current` reset on `requestId` change | ✅ | reset in requestId effect |
+| S1-6 | MerchantDashboard: missing `RequestCreated` event blocks success status | ✅ | `id !== null` guard |
+| S1-7 | MerchantDashboard: cancel hash persisted to sessionStorage | ✅ | `savePendingTx` on cancel onSuccess |
+| S1-8 | MerchantDashboard: cancel hash restored on mount/address change | ✅ | useState lazy init + useEffect |
+| S1-9 | `RequestRowWithData`: paid rows update within ~8 s from another browser | ✅ | staleTime:5s + refetchInterval:8s |
+| S1-10 | `MerchantOrderDetailPage`: management controls scoped to req.merchant | ✅ | `isMerchantOrder` guard |
+| S1-11 | Lint: 0 errors, 0 warnings | ✅ | oxlint |
+| S1-12 | TypeScript: 0 errors | ✅ | tsc --noEmit |
+| S1-T1 | Live: replacement TX → unresolved panel shown, no false success | ⬜ | requires controlled testnet TX |
+| S1-T2 | Live: cancel refresh → hash restored, confirming banner shown | ⬜ | requires live cancel mid-flight |
+| S1-T3 | Live: route A→B → no hash crossover in receipt/checkout | ⬜ | requires two paid requests |
+| S1-T4 | Live: another browser pays → row updates within ~8 s | ⬜ | requires two wallets |
+| S1-T5 | Live: order detail for another merchant's ID shows read-only | ⬜ | requires direct URL navigation |
+| S1-T6 | Live: QR/payment link uses /pay/N not ?request=N | ⬜ | visual check on deployed build |
+
+### Known limitations (honest, Stage 1)
+
+- `validatePaymentReceipt` reads raw log topics and data bytes directly. viem's `decodeEventLog` could be used as an alternative but requires the ABI import — the raw approach is simpler and covers all Arc Testnet receipt formats seen so far.
+- Cancel hash restoration sets `cancelStatus='confirming'` but cannot recover `cancellingId` from sessionStorage (it was not persisted). The per-row cancel indicator therefore does not show during restored tracking — the banner does show via `useWaitForTransactionReceipt`.
+- `refetchInterval: 8_000` on individual rows means up to 8 s delay between a payment and a merchant seeing the row update. This is an acceptable trade-off vs RPC rate-limiting at 1.5s per row with many rows mounted.
+- Live tests (S1-T1 through S1-T6) require testnet USDC, two wallets and controlled conditions. None have been run in this session.

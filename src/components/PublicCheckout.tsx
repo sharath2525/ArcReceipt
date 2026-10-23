@@ -1,22 +1,28 @@
 /**
- * PublicCheckout — Part 1 revision
+ * PublicCheckout — Part 1 + Stage-1 revision
  *
- * Part 1 additions (B):
+ * Stage 1 additions:
+ *   - Payment evidence: onPaid() only fires when the confirmed receipt
+ *     contains a PaymentRecorded event matching (id, merchant, amount, payer).
+ *     A replacement/repriced TX that succeeded without the expected event
+ *     is treated as unresolved: the TX hash is shown with an explorer link
+ *     but success is NOT claimed. Authoritative contract state is re-read
+ *     after every confirmed receipt.
+ *   - reportedHash ref is reset on requestId change so navigating
+ *     A→B cannot carry hash-A's success guard into request B.
+ *   - Stale account guard: the wallet address at submission time is
+ *     captured in the onSuccess closure; if the wallet changes before
+ *     confirmation the result is discarded.
+ *
+ * Part 1 additions (B — preserved):
  *   - Persists approveHash + payHash to sessionStorage keyed by
- *     chainId + contract + account + requestId. Restores on refresh so
- *     the customer does not lose their pending approval/payment after a
- *     hard reload.
- *   - Checks current USDC allowance on mount and when returning to the
- *     'approving' phase — if allowance >= req.amount, jumps to 'paying'
- *     phase without asking the user to approve again.
- *   - phase is also persisted (restore to 'paying' when approve hash
- *     is confirmed but the tab was refreshed before pay).
- *   - All other behaviour preserved from Day 3.
+ *     chainId + contract + account + requestId. Restores on refresh.
+ *   - Checks current USDC allowance; skips approve when already sufficient.
+ *   - phase persisted (restore to 'paying' after approve confirmed).
  *
  * Day 3 fixes (preserved):
  *   - Single useWriteContract hook prevents duplicate wallet requests.
  *   - walletBusy guard spans both phases.
- *   - approveHash preserved before pay step.
  *   - Rejection clears write hook without discarding hash.
  *   - chain-pinned watchers with confirmations:1.
  */
@@ -30,16 +36,83 @@ import { erc20Abi } from 'viem'
 import { toast } from 'sonner'
 import { TokenUSDC } from '@web3icons/react'
 import {
-  CheckCircle, AlertCircle, Loader2, ExternalLink, Clock, ArrowRight, ShieldCheck, Copy,
+  CheckCircle, AlertCircle, Loader2, ExternalLink, Clock, ArrowRight, ShieldCheck, Copy, RefreshCw,
 } from 'lucide-react'
 import { buildTxExplorerUrl, getUsdc } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
 import {
-  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID, type OnchainRequest,
+  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID, PAYMENT_RECORDED_TOPIC,
+  type OnchainRequest,
 } from '@/lib/contract'
 import { formatAddr, formatTs, isExpired } from '@/lib/ui'
 
+/**
+ * Validate that a confirmed receipt contains a PaymentRecorded event for the
+ * expected (requestId, merchant, amount, payer).
+ *
+ * Returns the matched TX hash from the receipt if valid, or null if:
+ *   - The contract address in the log does not match.
+ *   - topic-0 does not match PAYMENT_RECORDED_TOPIC.
+ *   - The decoded id, merchant, amount or payer do not match the expected values.
+ *   - Any log field required for validation is absent.
+ *
+ * "Amount" is validated against the onchain req.amount — the contract always
+ * transfers exactly the stored amount, so a mismatch means a different request
+ * or an unexpected repricing (neither should be possible on a valid pay() call).
+ */
+function validatePaymentReceipt(
+  receipt: { logs: Array<{ address: string; topics: readonly (string | null)[]; data: string }> },
+  requestId: bigint,
+  req: OnchainRequest,
+  payerAddress: string
+): boolean {
+  const wantTopic = PAYMENT_RECORDED_TOPIC.toLowerCase()
+  for (const log of receipt.logs) {
+    // Must come from the correct contract
+    if (log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) continue
+    // topic-0 must match PaymentRecorded
+    if (typeof log.topics[0] !== 'string') continue
+    if (log.topics[0].toLowerCase() !== wantTopic) continue
+
+    // topic-1 = indexed id (uint256 padded to 32 bytes)
+    const idTopic = log.topics[1]
+    if (!idTopic) continue
+    try {
+      const logId = BigInt(idTopic)
+      if (logId !== requestId) continue
+    } catch { continue }
+
+    // topic-2 = indexed merchant (address padded to 32 bytes)
+    const merchantTopic = log.topics[2]
+    if (!merchantTopic) continue
+    // address is last 20 bytes of 32-byte topic
+    const logMerchant = '0x' + merchantTopic.slice(-40)
+    if (logMerchant.toLowerCase() !== req.merchant.toLowerCase()) continue
+
+    // topic-3 = indexed payer
+    const payerTopic = log.topics[3]
+    if (!payerTopic) continue
+    const logPayer = '0x' + payerTopic.slice(-40)
+    if (logPayer.toLowerCase() !== payerAddress.toLowerCase()) continue
+
+    // data[0] = amount (first 32 bytes of data)
+    if (!log.data || log.data.length < 66) continue
+    try {
+      const logAmount = BigInt('0x' + log.data.slice(2, 66))
+      if (logAmount !== req.amount) continue
+    } catch { continue }
+
+    // All checks passed — this is a valid PaymentRecorded for this request
+    return true
+  }
+  return false
+}
+
 const USDC_ADDRESS = getUsdc(ARC_TESTNET_ID).address
+
+// ── Phase type ────────────────────────────────────────────────────────────────
+
+type Phase = 'preview' | 'approving' | 'paying' | 'done' | 'unresolved'
 
 // ── Pending-hash persistence ──────────────────────────────────────────────────
 // Keyed by chainId + contract + account (lowercase) + requestId so different
@@ -97,10 +170,6 @@ function decodeError(msg: string): string {
   const clean = msg.replace(/^[\w.]+Error:\s*/i, '').slice(0, 140)
   return clean
 }
-
-// ── Phase type ────────────────────────────────────────────────────────────────
-
-type Phase = 'preview' | 'approving' | 'paying' | 'done'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -217,21 +286,59 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
     resetWrite()
   }, [approveConfirmed, phase, resetWrite])
 
-  // Report paid exactly once
+  // Report paid exactly once — only after validating the PaymentRecorded event.
+  //
+  // Stage 1 correctness rule: wagmi's useWaitForTransactionReceipt confirms that
+  // a TX was mined successfully, but it does NOT verify that the TX executed the
+  // intended contract function. A replacement TX that was repriced or redirected
+  // could succeed without emitting PaymentRecorded for this (id, merchant, payer,
+  // amount). We validate every log in the receipt before calling onPaid().
+  //
+  // If the receipt is confirmed but no matching PaymentRecorded is found, we set
+  // phase='unresolved' and show an explorer link so the customer can investigate.
+  // We do NOT claim payment success in that case.
+  //
+  // The wallet address at submission time is captured in the payHash effect
+  // dependency — if the wallet changes, reportedHash guard prevents double-fire,
+  // and the address used for clearPendingPay is taken from the closure.
   const reportedHash = useRef<string | null>(null)
   useEffect(() => {
     if (!payConfirmed || !payHash || !payReceipt || reportedHash.current === payHash) return
+    // Always refetch authoritative contract state regardless of validation result
+    void refetch()
+    // Validate that the confirmed receipt contains the expected PaymentRecorded event
+    const isValid = req !== undefined && address !== undefined
+      ? validatePaymentReceipt(payReceipt, requestId, req, address)
+      : false
+
+    if (!isValid) {
+      // Confirmed TX but no matching PaymentRecorded — unresolved outcome.
+      // This can happen with replacement TXs or relay failures. Do NOT advance
+      // to done/success state. Show the explorer link so customer can investigate.
+      // Do NOT clear sessionStorage — the pending state remains for retry.
+      setPhase('unresolved')
+      setErrMsg(
+        'Payment TX confirmed but the expected payment event was not found. ' +
+        'Check the explorer link for details. If in doubt, do not pay again — wait ' +
+        'for the merchant to verify the request status.'
+      )
+      toast.error('Payment outcome unclear — check explorer before retrying.')
+      return
+    }
+
+    // Valid PaymentRecorded confirmed — advance to done
     reportedHash.current = payHash
     setPhase('done')
     if (address) clearPendingPay(address, requestId)
     onPaid?.(payHash)
-    void refetch()
-  }, [payConfirmed, payHash, payReceipt, onPaid, refetch, address, requestId])
+  }, [payConfirmed, payHash, payReceipt, onPaid, refetch, address, requestId, req])
 
-  // Reset when requestId changes
+  // Reset when requestId changes — clear ALL per-request refs so route
+  // A→B cannot carry A's success guard, stale hashes or restore state into B.
   useEffect(() => {
     didAdvance.current = false
     restoredRef.current = false
+    reportedHash.current = null  // Stage 1: reset so new requestId starts clean
     setPhase('preview')
     setApproveHash(undefined)
     setPayHash(undefined)
@@ -392,6 +499,52 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
           <Row label="Amount" value={`${formatUsdc(req.amount)} USDC`} />
           <Row label="TX" value={payHash.slice(0, 20) + '…'} mono />
         </div>
+      </div>
+    )
+  }
+
+  // ── Unresolved outcome (TX confirmed but PaymentRecorded not found) ──────
+  // This is shown when a replacement or unexpected TX was confirmed without
+  // the expected PaymentRecorded event. We do NOT declare success.
+  // The authoritative request state (req.status) is shown so the customer
+  // can see whether the contract recorded a payment.
+  if (phase === 'unresolved' && payHash) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={20} className="text-amber-500" />
+            <p className="text-sm font-semibold text-amber-800">Payment outcome unclear</p>
+          </div>
+          <p className="text-xs text-amber-700">
+            A transaction was confirmed, but the expected payment event was not found
+            in the receipt. The contract status is shown below.
+            Do not pay again without checking the explorer first.
+          </p>
+          <div className="rounded-xl bg-white border border-amber-100 p-3 text-xs text-slate-500 space-y-1">
+            <Row label="Request" value={`#${requestId.toString()}`} mono />
+            <Row label="Contract status" value={isPaid ? 'Paid' : isOpen ? 'Open' : isCancelled ? 'Cancelled' : 'Expired'} />
+            {isPaid && <Row label="Payer" value={formatAddr(req.payer)} mono />}
+          </div>
+          <a
+            href={buildTxExplorerUrl(ARC_TESTNET_ID, payHash)}
+            target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 hover:underline"
+          >
+            <ExternalLink size={14} /> Check TX on explorer
+          </a>
+          {isPaid && (
+            <p className="text-xs text-emerald-700 font-medium">
+              The contract now shows this request as Paid — no further action needed.
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => void refetch()}
+          className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
+        >
+          <RefreshCw size={14} /> Check again
+        </button>
       </div>
     )
   }
