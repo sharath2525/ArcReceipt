@@ -152,7 +152,48 @@ No other secrets needed for testnet. For mainnet, add your own RPC endpoint.
 
 ---
 
+## Editing files safely
+
+**Do not edit these files directly in the Code panel** — they are imported by almost every page and a one-character mistake crashes the entire app with a blank white screen:
+
+- `src/onchain-money.ts`
+- `src/lib/contract.ts`
+- `src/lib/deployment.ts`
+- `src/lib/merchant.ts`
+- `src/config.ts`
+- `src/main.tsx`
+
+Describe what you want changed in chat instead — changes are validated before being saved.
+
+**After any Code panel edit, run this to catch errors before deploying:**
+```bash
+bash /home/user/arc-studio-helpers/check.sh
+```
+If it reports errors, fix them before pushing or deploying. A blank white page on Vercel almost always means a JS syntax error in a core file.
+
+---
+
 ## Q&A — Common scenarios
+
+### Q: The app shows a completely blank white page — what happened?
+
+Almost always a JavaScript syntax error in a core file, usually caused by an accidental edit in the Code panel.
+
+**How to diagnose:**
+1. Open browser DevTools (F12) → Console tab
+2. Look for a `ReferenceError` or `SyntaxError` with a file name like `onchain-money.ts` or `contract.ts`
+3. The error message shows which file and which line
+
+**How to fix:**
+1. Run `bash /home/user/arc-studio-helpers/check.sh` in the Arc Studio terminal
+2. It will show the exact error and file
+3. Describe the error in chat and it will be fixed safely
+
+**Common causes:**
+- Accidental keypress at the start of a file while editing in the Code panel
+- Pasting text into the wrong file
+
+---
 
 ### Q: I changed my Vercel URL / redeployed and got a new URL. What do I need to update?
 

@@ -718,3 +718,26 @@
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792437441939}
 {"level":"error","message":"Uncaught ReferenceError: ng is not defined","timestamp":1792437460725,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1","stack":"ReferenceError: ng is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1"}
 {"level":"error","message":"Uncaught ReferenceError: ng is not defined","timestamp":1792437498681,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1","stack":"ReferenceError: ng is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1"}
+{"level":"error","message":"Uncaught ReferenceError: ng is not defined","timestamp":1792472210022,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1","stack":"ReferenceError: ng is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1"}
+{"level":"error","message":"Uncaught ReferenceError: ng is not defined","timestamp":1792505540816,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1","stack":"ReferenceError: ng is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1"}
+{"level":"error","message":"Uncaught ReferenceError: ng is not defined","timestamp":1792505579733,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1","stack":"ReferenceError: ng is not defined\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/onchain-money.ts:8:1"}
+{"level":"debug","message":"[vite] connected.","timestamp":1792506181695}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792506279593}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792506279597}
+{"level":"debug","message":"[vite] connected.","timestamp":1792506351129}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792506368473}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792506375632}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792506415670}
+{"level":"debug","message":"[vite] connected.","timestamp":1792506431041}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792506443960}
+{"level":"debug","message":"[vite] connected.","timestamp":1792506464918}
+{"level":"debug","message":"[vite] connected.","timestamp":1792506465415}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792512930958}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792571098746}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792572374641}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792573301072}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792575053396}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792575053401}
+{"level":"debug","message":"[vite] connected.","timestamp":1792585305276}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792588097435}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792692956634}
