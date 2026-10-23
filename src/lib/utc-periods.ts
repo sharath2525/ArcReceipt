@@ -83,6 +83,25 @@ export function formatUtcMonth(monthStart: number): string {
   })
 }
 
+/**
+ * Unix seconds at the start of the UTC month BEFORE the one containing `ts`.
+ * Correct for all months including January (wraps to December of prior year).
+ *
+ * D11 FIX: replaces the old `monthStartUtc(now - 86400 * 32)` approach which
+ * produces August when called on October 1 (32 days before Oct 1 = Aug 30).
+ * The correct formula: start of the month that precedes the current month.
+ *
+ * Examples:
+ *   ts = Oct 23 2026 → returns 2026-09-01 00:00:00 UTC  (September 2026)
+ *   ts = Jan  5 2027 → returns 2026-12-01 00:00:00 UTC  (December 2026)
+ *   ts = Mar  1 2028 → returns 2028-02-01 00:00:00 UTC  (February 2028, leap year)
+ */
+export function previousMonthStart(ts: number): number {
+  const thisMonth = monthStartUtc(ts)
+  // Go one second before this month's start → lands in the previous month
+  return monthStartUtc(thisMonth - 1)
+}
+
 /** Current Unix timestamp as a number (seconds). */
 export function nowSecs(): number {
   return Math.floor(Date.now() / 1000)

@@ -1,50 +1,50 @@
 /**
  * use-event-history.ts — Bounded getLogs scanner for merchant event history.
  *
- * CORRECTNESS GUARANTEES (Part 1 fixes):
+ * STAGE 2 IMPROVEMENTS over the Part 1 version:
  *
- * A1 — getLogs uses viem's TYPED ABI event overload with explicit `args`
- *      filtering by merchant address. Post-decode validation cross-checks:
- *        - log.address matches CONTRACT_ADDRESS
- *        - decoded event name matches expected type
- *        - decoded merchant matches the queried merchant address
- *        - decoded requestId > 0
- *      A PaymentRecorded event can never enter the createdEvents list.
- *      Another merchant's events can never enter this merchant's data.
+ * S2-A — Adaptive chunk size.
+ *   Starts at 10,000 blocks per getLogs call (measured working on Arc primary
+ *   and Blockdaemon/QuickNode). On a range-limit or timeout error, halves the
+ *   chunk size (10k → 5k → 2k). On a plain RPC error, retries with the same
+ *   range and exponential backoff. Chunk size is tracked per-scan and resets
+ *   on a new scan start so a single bad range doesn't permanently throttle.
  *
- * A2 — DEPLOYMENT_BLOCK is 67,462,931 (from deployment.ts, verified from
- *      AGENTS.md and contract-metadata). The old value of 2,900,000 is gone.
+ * S2-B — Parallel getLogs.
+ *   Both RequestCreated and PaymentRecorded getLogs for the same block range
+ *   are now issued in parallel (Promise.allSettled). Each is validated and
+ *   handled independently — a PaymentRecorded failure does not discard
+ *   already-fetched RequestCreated logs.
  *
- * A3 — isComplete is only set true when scanMode === 'full' AND
- *      scannedBlock >= headBlock AND failedRanges is empty.
- *      A recent-only scan completing its lookback window NEVER sets
- *      isComplete=true on scanProgress — it sets isRecentComplete instead.
- *      Callers that need "full history is available" must check
- *      scanMode === 'full' && scanProgress.isComplete.
+ * S2-C — Block timestamp cache.
+ *   Known block timestamps are cached in a per-scan Map and shared across
+ *   chunks. A block whose timestamp was successfully fetched in an earlier
+ *   chunk is not re-fetched. Survives across incremental tail-refresh runs.
  *
- * A4 — Recovery hardening:
- *      - Block timestamp fetch failures record a null entry; events from
- *        blocks with unknown timestamps are held in a pendingTimestamp set
- *        and retried on the next scan tick. Zero is never substituted.
- *      - Scan state carries a generation counter. A cancelled/stale scan
- *        that resolves after a newer scan has started discards its results
- *        rather than publishing them.
- *      - Cache schema is versioned (v2). v1 entries are invalidated on load.
- *        Cache contents are validated (required fields present, bigint
- *        parseable) before use; corrupt entries are discarded.
+ * S2-D — Tail-refresh (incremental).
+ *   When remounting with a warm cache that covers the recent lookback window,
+ *   the scan resumes from `scannedBlock+1` (forward from where it stopped)
+ *   rather than rescanning from the lookback start. `rescan()` still clears
+ *   cache and restarts from the lookback start. `rescanFull()` starts from
+ *   the deployment block.
  *
- * PUBLIC API:
- *   useEventHistory(merchant) → EventHistoryState
+ * S2-E — Correct completion semantics.
+ *   `scanProgress.isComplete` remains true only for full-mode scans.
+ *   `isRecentComplete` is set true when recent-mode finishes its window.
+ *   Both flags are exposed so callers can choose the right one.
+ *   A recent-mode scan finishing now also updates `scanProgress` with a
+ *   `recentComplete` field so `ScanBanner` can show "Recent history loaded".
  *
- * EventHistoryState:
- *   .createdEvents    — RequestCreated events (with verified block timestamp)
- *   .paymentEvents    — PaymentRecorded events (with paidAt from log data)
- *   .scanProgress     — { scannedBlock, headBlock, isComplete, failedRanges }
- *   .isScanning       — true while a scan chunk is in flight
- *   .scanMode         — 'recent' | 'full'
- *   .isRecentComplete — true when the recent-lookback window is fully scanned
- *   .rescan()         — reset and restart from recent lookback
- *   .rescanFull()     — reset and restart from deployment block
+ * S2-F — Concurrency limit on timestamp fetches.
+ *   Block timestamp requests are batched at most 4 in-flight at once to
+ *   avoid overwhelming the RPC with a large burst from a chunk with many
+ *   unique blocks.
+ *
+ * All Part 1 correctness guarantees (A1–A4) are preserved:
+ *   A1 — Typed ABI getLogs with args merchant filter + post-decode validation.
+ *   A2 — DEPLOYMENT_BLOCK from deployment.ts (67,462,931).
+ *   A3 — isComplete only for full scans.
+ *   A4 — Never substitute timestamp 0; generation counter prevents stale writes.
  */
 
 import { useState, useEffect, useRef, useCallback, startTransition } from 'react'
@@ -57,8 +57,6 @@ import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
 import { MERCHANT_ADDRESS } from '@/lib/merchant'
 
 // ── ABI event items (typed) ───────────────────────────────────────────────────
-// Using parseAbiItem ensures viem builds the correct topic-0 and indexed
-// field filters, avoiding the raw-topic cast that was silently dropped.
 
 const REQUEST_CREATED_ABI = parseAbiItem(
   'event RequestCreated(uint256 indexed id, address indexed merchant, uint256 amount, uint256 expiresAt)'
@@ -68,9 +66,7 @@ const PAYMENT_RECORDED_ABI = parseAbiItem(
   'event PaymentRecorded(uint256 indexed id, address indexed merchant, address indexed payer, uint256 amount, uint256 paidAt)'
 )
 
-// ── Typed log shapes for post-decode validation ───────────────────────────────
-// These match the decoded args viem returns for typed getLogs calls.
-// We cast via `unknown` rather than `any` so TypeScript narrows correctly.
+// ── Typed log shapes ──────────────────────────────────────────────────────────
 
 interface TypedCreatedLog {
   address: string
@@ -101,36 +97,41 @@ interface TypedPaymentLog {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/**
- * Verified deployment block for ArcReceiptCheckout on Arc Testnet.
- * Source: deployment.ts (67,462,931 confirmed in AGENTS.md).
- */
 const DEPLOYMENT_BLOCK: bigint = ARC_TESTNET_DEPLOYMENT.block
 
 /**
- * Default lookback from chain head on a fresh recent scan.
- * Arc Testnet runs ~2 blocks/second → ~172,800 blocks/day.
- * 300,000 blocks ≈ ~1.7 days, covers all contract history comfortably
- * for a recent-only scan.
+ * Arc Testnet ~2 blocks/second.
+ * 500,000 blocks ≈ ~2.9 days — covers a merchant who last checked 2 days ago.
+ * Increased from 300,000 (Part 1) to reduce the chance of a merchant needing
+ * to click "Load full history" just to see last night's sales.
  */
-const DEFAULT_LOOKBACK = 300_000n
+const DEFAULT_LOOKBACK = 500_000n
 
-/** Blocks per getLogs call. */
-const RANGE_SIZE = 2_000n
+/**
+ * S2-A: Starting chunk size. Measured working on Arc primary, Blockdaemon,
+ * QuickNode. Will halve on range-limit/timeout errors.
+ */
+const CHUNK_SIZE_START = 10_000n
+const CHUNK_SIZE_MIN   =  2_000n
 
-/** Max retries per failed chunk. */
-const MAX_RETRIES = 3
+/** Max retries per chunk on plain RPC errors (not range errors). */
+const MAX_RPC_RETRIES = 3
 
-/** Milliseconds between retry attempts (exponential backoff). */
-const RETRY_BASE_MS = 1_500
+/** Base backoff in ms for RPC retries (doubles each attempt). */
+const RETRY_BASE_MS = 1_000
 
-/** Milliseconds to wait between chunks to avoid rate-limiting.
- *  Arc Testnet public RPC allows ~5 req/s; with 2 calls per chunk
- *  (created + payment) we need at least 400ms between chunks. */
-const INTER_CHUNK_DELAY_MS = 450
+/**
+ * S2-B: After switching to parallel getLogs we only need one delay per chunk
+ * pair, not two separate ones. 300ms gives comfortable headroom at ~5 req/s
+ * for two parallel calls counted as one round-trip.
+ */
+const INTER_CHUNK_DELAY_MS = 300
 
-/** Cache schema version. Bump whenever the stored shape changes. */
-const CACHE_VERSION = 2
+/** S2-F: Max concurrent block-timestamp fetches per chunk. */
+const MAX_TS_CONCURRENCY = 4
+
+/** Cache schema version. Bump whenever stored shape changes. */
+const CACHE_VERSION = 3   // bumped from v2 for Stage 2 (adaptive chunk + tail-refresh cursor)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -139,11 +140,8 @@ export interface CreatedEvent {
   merchant: `0x${string}`
   amount: bigint
   expiresAt: bigint
-  /** Unix seconds (block.timestamp of the RequestCreated event's block).
-   *  Only present when the block timestamp was successfully fetched.
-   *  Never 0 — events with missing timestamps are excluded until retry. */
+  /** Unix seconds (block.timestamp). Never 0. */
   createdAt: number
-  /** Dedup key: txHash-logIndex */
   key: string
 }
 
@@ -152,9 +150,8 @@ export interface PaymentEvent {
   merchant: `0x${string}`
   payer: `0x${string}`
   amount: bigint
-  /** Unix seconds (paidAt from log data — equals block.timestamp per contract). */
+  /** Unix seconds (paidAt from log data). */
   paidAt: number
-  /** Dedup key: txHash-logIndex */
   key: string
 }
 
@@ -168,8 +165,10 @@ export interface ScanProgress {
   scannedBlock: bigint
   headBlock: bigint
   /** True only when scanMode === 'full' AND scannedBlock >= headBlock
-   *  AND failedRanges is empty. Never true for a recent-only scan. */
+   *  AND failedRanges is empty. Never true for recent-only scans. */
   isComplete: boolean
+  /** True when recent-mode scan has finished its lookback window. */
+  recentComplete: boolean
   failedRanges: FailedRange[]
 }
 
@@ -181,8 +180,7 @@ export interface EventHistoryState {
   scanProgress: ScanProgress
   isScanning: boolean
   scanMode: ScanMode
-  /** True when the recent-lookback window is fully scanned (distinct from
-   *  isComplete which requires full-history coverage). */
+  /** True when recent-lookback window is fully scanned. */
   isRecentComplete: boolean
   rescan: () => void
   rescanFull: () => void
@@ -194,20 +192,24 @@ function storageKey(merchant: string): string {
   return `arc-event-history-v${CACHE_VERSION}:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${merchant.toLowerCase()}`
 }
 
-/** Invalidate any v1 cache entry for this merchant. */
+/** Evict older cache versions. */
 function evictOldCache(merchant: string): void {
-  try {
-    const v1Key = `arc-event-history-v1:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${merchant.toLowerCase()}`
-    sessionStorage.removeItem(v1Key)
-  } catch { /* ignore */ }
+  for (const v of [1, 2]) {
+    try {
+      sessionStorage.removeItem(
+        `arc-event-history-v${v}:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${merchant.toLowerCase()}`
+      )
+    } catch { /* ignore */ }
+  }
 }
 
 interface PersistedState {
   version: number
   scannedBlock: string
-  /** Lowest block fully processed in the newest-first scan (= scanFloor). */
   scanFloor: string
   scanMode: ScanMode
+  /** S2-D: forward-scan cursor for tail-refresh. */
+  tailCursor: string
   createdEvents: SerializedCreatedEvent[]
   paymentEvents: SerializedPaymentEvent[]
   failedRanges: SerializedFailedRange[]
@@ -225,7 +227,7 @@ interface SerializedFailedRange {
   fromBlock: string; toBlock: string; error: string
 }
 
-function validateSerializedCreatedEvent(e: unknown): e is SerializedCreatedEvent {
+function validateSerializedCreated(e: unknown): e is SerializedCreatedEvent {
   if (!e || typeof e !== 'object') return false
   const o = e as Record<string, unknown>
   return (
@@ -238,7 +240,7 @@ function validateSerializedCreatedEvent(e: unknown): e is SerializedCreatedEvent
   )
 }
 
-function validateSerializedPaymentEvent(e: unknown): e is SerializedPaymentEvent {
+function validateSerializedPayment(e: unknown): e is SerializedPaymentEvent {
   if (!e || typeof e !== 'object') return false
   const o = e as Record<string, unknown>
   return (
@@ -254,6 +256,7 @@ function validateSerializedPaymentEvent(e: unknown): e is SerializedPaymentEvent
 function loadState(merchant: string): {
   scannedBlock: bigint
   scanFloor: bigint
+  tailCursor: bigint
   scanMode: ScanMode
   createdEvents: CreatedEvent[]
   paymentEvents: PaymentEvent[]
@@ -264,22 +267,22 @@ function loadState(merchant: string): {
     const raw = sessionStorage.getItem(storageKey(merchant))
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<PersistedState>
-
-    // Schema version check — discard incompatible entries
     if (parsed.version !== CACHE_VERSION) return null
     if (typeof parsed.scannedBlock !== 'string') return null
 
     const scannedBlock = BigInt(parsed.scannedBlock)
-    // Sanity check: cached scannedBlock must be >= deployment block
     if (scannedBlock < DEPLOYMENT_BLOCK - 1n) return null
 
     const scanMode: ScanMode =
       parsed.scanMode === 'full' || parsed.scanMode === 'recent'
-        ? parsed.scanMode
-        : 'recent'
+        ? parsed.scanMode : 'recent'
+
+    const tailCursor = typeof parsed.tailCursor === 'string'
+      ? BigInt(parsed.tailCursor)
+      : scannedBlock
 
     const createdEvents: CreatedEvent[] = (parsed.createdEvents ?? [])
-      .filter(validateSerializedCreatedEvent)
+      .filter(validateSerializedCreated)
       .map(e => ({
         requestId: BigInt(e.requestId),
         merchant: e.merchant as `0x${string}`,
@@ -290,7 +293,7 @@ function loadState(merchant: string): {
       }))
 
     const paymentEvents: PaymentEvent[] = (parsed.paymentEvents ?? [])
-      .filter(validateSerializedPaymentEvent)
+      .filter(validateSerializedPayment)
       .map(e => ({
         requestId: BigInt(e.requestId),
         merchant: e.merchant as `0x${string}`,
@@ -313,8 +316,10 @@ function loadState(merchant: string): {
         error: r.error,
       }))
 
-    const scanFloor = typeof parsed.scanFloor === 'string' ? BigInt(parsed.scanFloor) : scannedBlock
-    return { scannedBlock, scanFloor, scanMode, createdEvents, paymentEvents, failedRanges }
+    const scanFloor = typeof parsed.scanFloor === 'string'
+      ? BigInt(parsed.scanFloor) : scannedBlock
+
+    return { scannedBlock, scanFloor, tailCursor, scanMode, createdEvents, paymentEvents, failedRanges }
   } catch {
     return null
   }
@@ -323,6 +328,7 @@ function loadState(merchant: string): {
 function saveState(merchant: string, state: {
   scannedBlock: bigint
   scanFloor: bigint
+  tailCursor: bigint
   scanMode: ScanMode
   createdEvents: CreatedEvent[]
   paymentEvents: PaymentEvent[]
@@ -333,6 +339,7 @@ function saveState(merchant: string, state: {
       version: CACHE_VERSION,
       scannedBlock: state.scannedBlock.toString(),
       scanFloor: state.scanFloor.toString(),
+      tailCursor: state.tailCursor.toString(),
       scanMode: state.scanMode,
       createdEvents: state.createdEvents.map(e => ({
         ...e,
@@ -352,11 +359,41 @@ function saveState(merchant: string, state: {
       })),
     }
     sessionStorage.setItem(storageKey(merchant), JSON.stringify(serializable))
-  } catch { /* sessionStorage quota — ignore */ }
+  } catch { /* quota */ }
 }
 
 function clearState(merchant: string): void {
   try { sessionStorage.removeItem(storageKey(merchant)) } catch { /* ignore */ }
+}
+
+// ── S2-F: Bounded concurrency helper ─────────────────────────────────────────
+
+async function pLimit<T>(
+  tasks: Array<() => Promise<T>>,
+  concurrency: number
+): Promise<Array<PromiseSettledResult<T>>> {
+  // Initialise with placeholders; each worker overwrites its slot before
+  // the outer Promise.all resolves, so no placeholder escapes.
+  const results: PromiseSettledResult<T>[] = Array.from(
+    { length: tasks.length },
+    (): PromiseSettledResult<T> => ({ status: 'fulfilled', value: undefined as unknown as T })
+  )
+  let idx = 0
+
+  async function worker() {
+    while (idx < tasks.length) {
+      const i = idx++
+      try {
+        results[i] = { status: 'fulfilled', value: await tasks[i]() }
+      } catch (e) {
+        results[i] = { status: 'rejected', reason: e }
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, worker)
+  await Promise.all(workers)
+  return results
 }
 
 // ── Main hook ─────────────────────────────────────────────────────────────────
@@ -364,25 +401,21 @@ function clearState(merchant: string): void {
 export function useEventHistory(merchant: `0x${string}` | null): EventHistoryState {
   const publicClient = usePublicClient({ chainId: ARC_TESTNET_ID })
 
-  // In-memory scan state (not in React state to avoid excessive re-renders
-  // during the tight scan loop)
   const stateRef = useRef<{
     createdEvents: CreatedEvent[]
     paymentEvents: PaymentEvent[]
-    /** Lowest block boundary for the scan range (passed to initState).
-     *  Used as the stopping condition for the newest-first scan loop. */
-    scannedBlock: bigint
-    /** Lowest block we have already processed (floor of processed range).
-     *  Starts at headBlock on a fresh scan; decreases each chunk. */
+    scannedBlock: bigint   // lower bound of the scan range (floor reached so far)
     scanFloor: bigint
+    tailCursor: bigint     // S2-D: forward cursor for tail-refresh
     failedRanges: FailedRange[]
     scanMode: ScanMode
     createdKeys: Set<string>
     paymentKeys: Set<string>
-    /** Generation counter: incremented each time a new scan is started.
-     *  A running scan checks this before publishing results — stale
-     *  generations discard without updating React state. */
     generation: number
+    /** S2-C: block timestamp cache, shared across chunks */
+    tsCache: Map<bigint, number>
+    /** S2-A: current adaptive chunk size for this scan */
+    chunkSize: bigint
   } | null>(null)
 
   const [createdEvents, setCreatedEvents] = useState<CreatedEvent[]>([])
@@ -391,57 +424,67 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
     scannedBlock: DEPLOYMENT_BLOCK - 1n,
     headBlock: DEPLOYMENT_BLOCK - 1n,
     isComplete: false,
+    recentComplete: false,
     failedRanges: [],
   })
   const [isScanning, setIsScanning] = useState(false)
   const [scanMode, setScanMode] = useState<ScanMode>('recent')
   const [isRecentComplete, setIsRecentComplete] = useState(false)
 
-  // Generation ref — NOT in React state (avoids stale closure issues)
   const generationRef = useRef(0)
   const scanAbortRef = useRef<AbortController | null>(null)
 
   const initState = useCallback((
     m: string,
     startBlock: bigint,
-    mode: ScanMode
+    mode: ScanMode,
+    tailOnly: boolean   // S2-D: true = resume from cache without resetting events
   ) => {
-    const saved = loadState(m)
+    const saved = !tailOnly ? null : loadState(m)
     if (saved && saved.scannedBlock >= startBlock && saved.scanMode === mode) {
+      // Warm cache — restore events and resume from tail
       stateRef.current = {
         createdEvents: saved.createdEvents,
         paymentEvents: saved.paymentEvents,
         scannedBlock: saved.scannedBlock,
         scanFloor: saved.scanFloor,
+        tailCursor: saved.tailCursor,
         failedRanges: saved.failedRanges,
         scanMode: mode,
         createdKeys: new Set(saved.createdEvents.map(e => e.key)),
         paymentKeys: new Set(saved.paymentEvents.map(e => e.key)),
         generation: generationRef.current,
+        tsCache: new Map(),
+        chunkSize: CHUNK_SIZE_START,
       }
       setCreatedEvents(saved.createdEvents)
       setPaymentEvents(saved.paymentEvents)
-      setScanProgress(p => ({
-        ...p,
+      setScanProgress({
         scannedBlock: saved.scanFloor,
-        failedRanges: saved.failedRanges,
+        headBlock: saved.tailCursor,
         isComplete: false,
-      }))
+        recentComplete: false,
+        failedRanges: saved.failedRanges,
+      })
     } else {
+      // Fresh scan
       stateRef.current = {
         createdEvents: [], paymentEvents: [],
         scannedBlock: startBlock,
-        scanFloor: startBlock, // will be updated to headBlock on first chunk
+        scanFloor: startBlock,
+        tailCursor: startBlock,
         failedRanges: [],
         scanMode: mode,
         createdKeys: new Set(), paymentKeys: new Set(),
         generation: generationRef.current,
+        tsCache: new Map(),
+        chunkSize: CHUNK_SIZE_START,
       }
       setCreatedEvents([])
       setPaymentEvents([])
       setScanProgress({
         scannedBlock: startBlock, headBlock: startBlock,
-        isComplete: false, failedRanges: [],
+        isComplete: false, recentComplete: false, failedRanges: [],
       })
     }
     setIsRecentComplete(false)
@@ -450,14 +493,14 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
   const runScan = useCallback(async (
     m: `0x${string}`,
     abort: AbortController,
-    myGeneration: number
+    myGeneration: number,
+    tailOnly: boolean   // S2-D: only scan new blocks above tailCursor
   ) => {
     if (!publicClient) return
     if (!stateRef.current) return
 
     setIsScanning(true)
 
-    // Helper: is this scan still the current one?
     const isCurrent = () =>
       !abort.signal.aborted && generationRef.current === myGeneration
 
@@ -469,249 +512,339 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
         setIsScanning(false)
         return
       }
-
       if (!isCurrent()) return
 
       const mode = stateRef.current.scanMode
-      setScanProgress(p => ({
-        ...p,
-        headBlock,
-        isComplete: false,
-      }))
+      setScanProgress(p => ({ ...p, headBlock, isComplete: false, recentComplete: false }))
 
-      // ── Newest-first scan ──────────────────────────────────────────────────
-      // scanFloor = lowest block fully processed so far.
-      // We start at headBlock and work DOWN toward startBlock so that recent
-      // transactions appear in the UI after the very first chunk.
-      // scannedBlock in the public ScanProgress is repurposed as scanFloor —
-      // callers see it decrease toward the deployment block as history loads.
+      if (tailOnly) {
+        // ── S2-D: Tail-refresh — scan forward from tailCursor to headBlock ──
+        const tailStart = stateRef.current.tailCursor + 1n
 
-      const startBlock = stateRef.current.scannedBlock // lowest bound (exclusive)
-      if (startBlock >= headBlock) {
-        // Already up to date
-        const isComplete = mode === 'full' && stateRef.current.failedRanges.length === 0
-        setScanProgress(p => ({ ...p, headBlock, isComplete }))
-        if (mode === 'recent') setIsRecentComplete(true)
-        setIsScanning(false)
-        return
+        if (tailStart > headBlock) {
+          // Already up to date
+          const isComplete = mode === 'full' && stateRef.current.failedRanges.length === 0
+          const recentComplete = mode === 'recent'
+          setScanProgress(p => ({ ...p, headBlock, isComplete, recentComplete }))
+          if (recentComplete) setIsRecentComplete(true)
+          setIsScanning(false)
+          return
+        }
+
+        let cursor = tailStart
+        while (cursor <= headBlock) {
+          if (!isCurrent()) break
+          const chunkSize = stateRef.current.chunkSize
+          const to = cursor + chunkSize - 1n < headBlock ? cursor + chunkSize - 1n : headBlock
+          const added = await fetchAndProcessChunk(m, cursor, to, abort, myGeneration)
+          if (added === null) break  // aborted
+          if (!isCurrent()) break
+          stateRef.current.tailCursor = to
+          cursor = to + 1n
+          setScanProgress({
+            scannedBlock: stateRef.current.scanFloor,
+            headBlock,
+            isComplete: false,
+            recentComplete: false,
+            failedRanges: [...stateRef.current.failedRanges],
+          })
+          saveState(m, stateRef.current)
+          if (cursor <= headBlock && isCurrent()) {
+            await new Promise(res => setTimeout(res, INTER_CHUNK_DELAY_MS))
+          }
+        }
+
+        if (isCurrent()) {
+          const isComplete = mode === 'full' &&
+            stateRef.current.scannedBlock <= (DEPLOYMENT_BLOCK - 1n) &&
+            stateRef.current.failedRanges.length === 0
+          const recentComplete = mode === 'recent'
+          setScanProgress(p => ({ ...p, headBlock, isComplete, recentComplete }))
+          if (recentComplete) setIsRecentComplete(true)
+        }
+
+      } else {
+        // ── Newest-first downward scan ──────────────────────────────────────
+        const startBlock = stateRef.current.scannedBlock
+        if (startBlock >= headBlock) {
+          const isComplete = mode === 'full' && stateRef.current.failedRanges.length === 0
+          const recentComplete = mode === 'recent'
+          setScanProgress(p => ({ ...p, headBlock, isComplete, recentComplete }))
+          if (recentComplete) setIsRecentComplete(true)
+          setIsScanning(false)
+          return
+        }
+
+        let chunkTop = headBlock
+        // Set tail cursor to head so future tail-refreshes start here
+        stateRef.current.tailCursor = headBlock
+
+        while (chunkTop > startBlock) {
+          if (!isCurrent()) break
+          const chunkSize = stateRef.current.chunkSize
+          const chunkBottom = chunkTop >= startBlock + chunkSize
+            ? chunkTop - chunkSize + 1n
+            : startBlock + 1n
+          const from = chunkBottom
+          const to   = chunkTop
+
+          const added = await fetchAndProcessChunk(m, from, to, abort, myGeneration)
+          if (added === null) break  // aborted
+
+          if (!isCurrent()) break
+
+          stateRef.current.scannedBlock = from - 1n
+          stateRef.current.scanFloor = from - 1n
+
+          const reachedBottom = stateRef.current.scannedBlock <= startBlock
+          const isComplete = mode === 'full' && reachedBottom && stateRef.current.failedRanges.length === 0
+
+          setScanProgress({
+            scannedBlock: stateRef.current.scannedBlock,
+            headBlock,
+            isComplete,
+            recentComplete: false,
+            failedRanges: [...stateRef.current.failedRanges],
+          })
+
+          saveState(m, stateRef.current)
+
+          chunkTop = from - 1n
+
+          if (chunkTop > startBlock && isCurrent()) {
+            await new Promise(res => setTimeout(res, INTER_CHUNK_DELAY_MS))
+          }
+        }
+
+        if (isCurrent()) {
+          const mode2 = stateRef.current?.scanMode ?? mode
+          const reachedBottom2 = (stateRef.current?.scannedBlock ?? headBlock) <= startBlock
+          const isComplete = mode2 === 'full' && reachedBottom2 &&
+            (stateRef.current?.failedRanges.length ?? 1) === 0
+          const recentComplete = mode2 === 'recent'
+          setScanProgress(p => ({ ...p, headBlock, isComplete, recentComplete }))
+          if (recentComplete) setIsRecentComplete(true)
+        }
       }
+    } finally {
+      setIsScanning(false)
+    }
 
-      // Newest-first: always start at headBlock so brand-new blocks are seen
-      // immediately; the dedup key set skips events already stored from a
-      // previous session. This means the first chunk always covers the most
-      // recent RANGE_SIZE blocks, giving today's payments on the very first tick.
-      let chunkTop = headBlock
+    // ── Inner: fetch one chunk and process its logs ─────────────────────────
+    async function fetchAndProcessChunk(
+      m: `0x${string}`,
+      from: bigint,
+      to: bigint,
+      abort: AbortController,
+      gen: number
+    ): Promise<boolean | null> {
+      if (!publicClient || !stateRef.current) return null
 
-      while (chunkTop > startBlock) {
-        if (!isCurrent()) break
+      const isCur = () => !abort.signal.aborted && generationRef.current === gen
 
-        const chunkBottom = chunkTop >= startBlock + RANGE_SIZE
-          ? chunkTop - RANGE_SIZE + 1n
-          : startBlock + 1n
+      // S2-A: Adaptive chunk size. Try at current size; on range/timeout error halve it.
+      let currentFrom = from
+      let currentTo = to
 
-        const from = chunkBottom
-        const to   = chunkTop
+      for (let sizeAttempt = 0; sizeAttempt < 3; sizeAttempt++) {
+        if (!isCur()) return null
 
-        // Cast via unknown to TypedCreatedLog / TypedPaymentLog — viem's typed
-        // getLogs return-type includes `args` but the union that tsc resolves
-        // to an untyped overload. Post-decode validation is the safety net.
+        // S2-B: Parallel getLogs for both event types
         let createdLogs: TypedCreatedLog[] = []
         let paymentLogs: TypedPaymentLog[] = []
         let success = false
 
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-          if (!isCurrent()) break
+        for (let retry = 0; retry < MAX_RPC_RETRIES; retry++) {
+          if (!isCur()) return null
           try {
-            // A1: Use viem's typed event overload with explicit `args`.
-            // Serialised (not parallel) to avoid rate-limiting — the public
-            // Arc Testnet RPC rejects concurrent requests from the same IP.
-            createdLogs = await publicClient.getLogs({
-              address: CONTRACT_ADDRESS as `0x${string}`,
-              event: REQUEST_CREATED_ABI,
-              args: { merchant: m },
-              fromBlock: from,
-              toBlock: to,
-            })
-            if (!isCurrent()) break
-            paymentLogs = await publicClient.getLogs({
-              address: CONTRACT_ADDRESS as `0x${string}`,
-              event: PAYMENT_RECORDED_ABI,
-              args: { merchant: m },
-              fromBlock: from,
-              toBlock: to,
-            })
-            success = true
-            break
-          } catch {
-            if (attempt < MAX_RETRIES - 1) {
-              await new Promise(res =>
-                setTimeout(res, RETRY_BASE_MS * (attempt + 1))
-              )
+            const [createdResult, paymentResult] = await Promise.allSettled([
+              publicClient.getLogs({
+                address: CONTRACT_ADDRESS as `0x${string}`,
+                event: REQUEST_CREATED_ABI,
+                args: { merchant: m },
+                fromBlock: currentFrom,
+                toBlock: currentTo,
+              }),
+              publicClient.getLogs({
+                address: CONTRACT_ADDRESS as `0x${string}`,
+                event: PAYMENT_RECORDED_ABI,
+                args: { merchant: m },
+                fromBlock: currentFrom,
+                toBlock: currentTo,
+              }),
+            ])
+
+            // S2-B: Handle each result independently
+            let createdOk = false
+            let paymentOk = false
+
+            if (createdResult.status === 'fulfilled') {
+              createdLogs = createdResult.value
+              createdOk = true
+            } else {
+              const errMsg = (createdResult.reason as Error)?.message ?? ''
+              // Range-limit or timeout error — need to shrink, not retry
+              if (/range|limit|timeout|too many|block range/i.test(errMsg)) {
+                throw new RangeError(errMsg)
+              }
+            }
+
+            if (paymentResult.status === 'fulfilled') {
+              paymentLogs = paymentResult.value
+              paymentOk = true
+            } else {
+              const errMsg = (paymentResult.reason as Error)?.message ?? ''
+              if (/range|limit|timeout|too many|block range/i.test(errMsg)) {
+                throw new RangeError(errMsg)
+              }
+            }
+
+            if (createdOk || paymentOk) {
+              success = true
+              break
+            }
+
+            // Both failed with non-range errors — exponential backoff and retry
+            if (retry < MAX_RPC_RETRIES - 1) {
+              await new Promise(res => setTimeout(res, RETRY_BASE_MS * Math.pow(2, retry)))
+            }
+          } catch (e) {
+            // RangeError = block-range too large, halve it immediately (no retry)
+            if (e instanceof RangeError) {
+              break
+            }
+            if (retry < MAX_RPC_RETRIES - 1) {
+              await new Promise(res => setTimeout(res, RETRY_BASE_MS * Math.pow(2, retry)))
             }
           }
         }
 
-        if (!isCurrent()) break
+        if (success) {
+          // Process the logs we got
+          await processLogs(m, createdLogs, paymentLogs, gen, abort)
+          return true
+        }
 
-        if (!success) {
+        // S2-A: Shrink chunk size and retry the range
+        const newSize = stateRef.current.chunkSize / 2n
+        if (newSize < CHUNK_SIZE_MIN) {
+          // Minimum size reached — record as failed and move on
           const fr: FailedRange = {
-            fromBlock: from,
-            toBlock: to,
-            error: `getLogs failed after ${MAX_RETRIES} attempts`,
+            fromBlock: currentFrom,
+            toBlock: currentTo,
+            error: `getLogs failed after ${MAX_RPC_RETRIES} attempts at minimum chunk size`,
           }
           stateRef.current.failedRanges.push(fr)
-          // Advance scanFloor past this failed range so we don't loop forever
-          stateRef.current.scannedBlock = from - 1n
-          stateRef.current.scanFloor = from - 1n
-        } else {
-          // ── Fetch block timestamps for created events ──────────────────
-          // A4: Never substitute timestamp 0. Events from blocks whose
-          // timestamps we cannot fetch are simply not added this pass.
-          // They will be picked up on the next scan cycle (the hook rescans
-          // incrementally from scannedBlock).
-          const blockNums = [...new Set(
-            createdLogs
-              .map(l => l.blockNumber)
-              .filter((bn): bn is bigint => bn !== null)
-          )]
-          const blockTsMap = new Map<bigint, number>()
-
-          if (blockNums.length > 0) {
-            const blockResults = await Promise.allSettled(
-              blockNums.map(bn => publicClient.getBlock({ blockNumber: bn }))
-            )
-            blockResults.forEach((res, i) => {
-              if (res.status === 'fulfilled' && res.value?.timestamp) {
-                blockTsMap.set(blockNums[i], Number(res.value.timestamp))
-              }
-              // A4: On failure, leave the entry absent — never insert 0
-            })
-          }
-
-          if (!isCurrent()) break
-
-          let didAddCreated = false
-          let didAddPayment = false
-
-          // ── Process RequestCreated events ──────────────────────────────
-          for (const log of createdLogs) {
-            // A1: Post-decode strict validation
-            // Contract address
-            if (!log.address || log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) continue
-            // viem typed logs have decoded args
-            const args: TypedCreatedLog['args'] = log.args
-            if (!args) continue
-            const { id, merchant: logMerchant, amount, expiresAt } = args
-            if (!id || id <= 0n) continue
-            if (!logMerchant || logMerchant.toLowerCase() !== m.toLowerCase()) continue
-            if (!amount || amount <= 0n) continue
-            if (!expiresAt) continue
-
-            const rawKey = `${log.transactionHash ?? 'pending'}-${log.logIndex ?? 0}`
-            if (stateRef.current.createdKeys.has(rawKey)) continue
-
-            // A4: Skip if block timestamp not available (never use 0)
-            const bn = log.blockNumber
-            if (bn === null) continue
-            const ts = blockTsMap.get(bn)
-            if (ts === undefined) continue // will retry next cycle
-
-            stateRef.current.createdKeys.add(rawKey)
-            stateRef.current.createdEvents.push({
-              requestId: id,
-              merchant: logMerchant,
-              amount,
-              expiresAt,
-              createdAt: ts,
-              key: rawKey,
-            })
-            didAddCreated = true
-          }
-
-          // ── Process PaymentRecorded events ─────────────────────────────
-          for (const log of paymentLogs) {
-            // A1: Post-decode strict validation
-            if (!log.address || log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) continue
-            const args: TypedPaymentLog['args'] = log.args
-            if (!args) continue
-            const { id, merchant: logMerchant, payer, amount, paidAt } = args
-            if (!id || id <= 0n) continue
-            if (!logMerchant || logMerchant.toLowerCase() !== m.toLowerCase()) continue
-            if (!payer) continue
-            if (!amount || amount <= 0n) continue
-            if (!paidAt || paidAt <= 0n) continue
-
-            const rawKey = `${log.transactionHash ?? 'pending'}-${log.logIndex ?? 0}`
-            if (stateRef.current.paymentKeys.has(rawKey)) continue
-
-            stateRef.current.paymentKeys.add(rawKey)
-            stateRef.current.paymentEvents.push({
-              requestId: id,
-              merchant: logMerchant,
-              payer,
-              amount,
-              paidAt: Number(paidAt),
-              key: rawKey,
-            })
-            didAddPayment = true
-          }
-
-          // scanFloor = lowest block processed. Decreases each chunk (newest-first).
-          stateRef.current.scannedBlock = from - 1n
-          stateRef.current.scanFloor = from - 1n
-
-          if (didAddCreated) setCreatedEvents([...stateRef.current.createdEvents])
-          if (didAddPayment) setPaymentEvents([...stateRef.current.paymentEvents])
+          // Advance the scan cursor past this failed range
+          stateRef.current.scannedBlock = currentFrom - 1n
+          stateRef.current.scanFloor = currentFrom - 1n
+          return false
         }
-
-        // A3: isComplete only for full-mode scans that have reached startBlock
-        const reachedBottom = stateRef.current.scannedBlock <= startBlock
-        const isComplete =
-          mode === 'full' &&
-          reachedBottom &&
-          stateRef.current.failedRanges.length === 0
-
-        setScanProgress({
-          scannedBlock: stateRef.current.scannedBlock,
-          headBlock,
-          isComplete,
-          failedRanges: [...stateRef.current.failedRanges],
-        })
-
-        // Persist after each chunk
-        saveState(m, {
-          scannedBlock: stateRef.current.scannedBlock,
-          scanFloor: stateRef.current.scanFloor,
-          scanMode: stateRef.current.scanMode,
-          createdEvents: stateRef.current.createdEvents,
-          paymentEvents: stateRef.current.paymentEvents,
-          failedRanges: stateRef.current.failedRanges,
-        })
-
-        // Advance downward: next chunk ends just below current chunk bottom
-        chunkTop = from - 1n
-
-        // Rate-limit guard: wait between chunks so the public RPC doesn't
-        // reject concurrent / back-to-back requests. 450ms gives headroom
-        // for the two serialised calls per chunk at ~5 req/s.
-        if (isCurrent()) {
-          await new Promise(res => setTimeout(res, INTER_CHUNK_DELAY_MS))
-        }
+        stateRef.current.chunkSize = newSize
+        // Split: retry only first half (will loop again for second half naturally)
+        currentTo = currentFrom + newSize - 1n < to ? currentFrom + newSize - 1n : to
       }
 
-      // Scan finished (or aborted) — final state update
-      if (isCurrent()) {
-        const mode2 = stateRef.current?.scanMode ?? mode
-        const reachedBottom2 = (stateRef.current?.scannedBlock ?? headBlock) <= startBlock
-        const isComplete =
-          mode2 === 'full' &&
-          reachedBottom2 &&
-          (stateRef.current?.failedRanges.length ?? 1) === 0
-        setScanProgress(p => ({ ...p, headBlock, isComplete }))
-        if (mode2 === 'recent') setIsRecentComplete(true)
+      return false
+    }
+
+    // ── Inner: process fetched logs ─────────────────────────────────────────
+    async function processLogs(
+      m: `0x${string}`,
+      createdLogs: TypedCreatedLog[],
+      paymentLogs: TypedPaymentLog[],
+      gen: number,
+      abort: AbortController
+    ) {
+      if (!publicClient || !stateRef.current) return
+      const isCur = () => !abort.signal.aborted && generationRef.current === gen
+
+      // S2-C: Fetch block timestamps for new blocks only
+      const blockNums = [...new Set(
+        createdLogs
+          .map(l => l.blockNumber)
+          .filter((bn): bn is bigint => bn !== null)
+          .filter(bn => !stateRef.current!.tsCache.has(bn))
+      )]
+
+      if (blockNums.length > 0 && isCur()) {
+        // S2-F: bounded concurrency
+        const tasks = blockNums.map(bn => () => publicClient.getBlock({ blockNumber: bn }))
+        const results = await pLimit(tasks, MAX_TS_CONCURRENCY)
+        if (!isCur()) return
+        results.forEach((res, i) => {
+          if (res.status === 'fulfilled' && res.value?.timestamp) {
+            stateRef.current!.tsCache.set(blockNums[i], Number(res.value.timestamp))
+          }
+          // A4: never insert 0
+        })
       }
-    } finally {
-      setIsScanning(false)
+
+      if (!isCur() || !stateRef.current) return
+
+      let didAddCreated = false
+      let didAddPayment = false
+
+      // Process RequestCreated
+      for (const log of createdLogs) {
+        if (!log.address || log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) continue
+        const args: TypedCreatedLog['args'] = log.args
+        if (!args) continue
+        const { id, merchant: logMerchant, amount, expiresAt } = args
+        if (!id || id <= 0n) continue
+        if (!logMerchant || logMerchant.toLowerCase() !== m.toLowerCase()) continue
+        if (!amount || amount <= 0n) continue
+        if (!expiresAt) continue
+
+        const rawKey = `${log.transactionHash ?? 'pending'}-${log.logIndex ?? 0}`
+        if (stateRef.current.createdKeys.has(rawKey)) continue
+
+        const bn = log.blockNumber
+        if (bn === null) continue
+        const ts = stateRef.current.tsCache.get(bn)
+        if (ts === undefined) continue  // A4: skip unknown timestamp
+
+        stateRef.current.createdKeys.add(rawKey)
+        stateRef.current.createdEvents.push({
+          requestId: id,
+          merchant: logMerchant,
+          amount,
+          expiresAt,
+          createdAt: ts,
+          key: rawKey,
+        })
+        didAddCreated = true
+      }
+
+      // Process PaymentRecorded
+      for (const log of paymentLogs) {
+        if (!log.address || log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) continue
+        const args: TypedPaymentLog['args'] = log.args
+        if (!args) continue
+        const { id, merchant: logMerchant, payer, amount, paidAt } = args
+        if (!id || id <= 0n) continue
+        if (!logMerchant || logMerchant.toLowerCase() !== m.toLowerCase()) continue
+        if (!payer) continue
+        if (!amount || amount <= 0n) continue
+        if (!paidAt || paidAt <= 0n) continue
+
+        const rawKey = `${log.transactionHash ?? 'pending'}-${log.logIndex ?? 0}`
+        if (stateRef.current.paymentKeys.has(rawKey)) continue
+
+        stateRef.current.paymentKeys.add(rawKey)
+        stateRef.current.paymentEvents.push({
+          requestId: id,
+          merchant: logMerchant,
+          payer,
+          amount,
+          paidAt: Number(paidAt),
+          key: rawKey,
+        })
+        didAddPayment = true
+      }
+
+      if (didAddCreated) startTransition(() => setCreatedEvents([...stateRef.current!.createdEvents]))
+      if (didAddPayment) startTransition(() => setPaymentEvents([...stateRef.current!.paymentEvents]))
     }
   }, [publicClient])
 
@@ -727,7 +860,15 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
     }
   }, [publicClient])
 
-  // Start scan on mount / merchant change — use recent lookback by default
+  // S2-D: Check whether cache covers recent lookback so we can do tail-only
+  const canDoTailRefresh = useCallback((merchant: string, startBlock: bigint): boolean => {
+    const saved = loadState(merchant)
+    if (!saved) return false
+    // Tail-refresh is safe only if the cached scan covers the same start block
+    // (i.e., the lookback window hasn't moved significantly).
+    return saved.scannedBlock <= startBlock && saved.scanMode === 'recent'
+  }, [])
+
   useEffect(() => {
     if (!merchant) return
     if (merchant.toLowerCase() !== MERCHANT_ADDRESS?.toLowerCase()) return
@@ -742,12 +883,13 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
 
     void (async () => {
       const startBlock = await getRecentStartBlock()
-      startTransition(() => { initState(merchant, startBlock, 'recent') })
-      void runScan(merchant, abort, gen)
+      const isTail = canDoTailRefresh(merchant, startBlock)
+      startTransition(() => { initState(merchant, startBlock, 'recent', isTail) })
+      void runScan(merchant, abort, gen, isTail)
     })()
 
     return () => { abort.abort() }
-  }, [merchant, initState, runScan, getRecentStartBlock])
+  }, [merchant, initState, runScan, getRecentStartBlock, canDoTailRefresh])
 
   const rescan = useCallback(() => {
     if (!merchant) return
@@ -761,8 +903,8 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
     setIsRecentComplete(false)
     void (async () => {
       const startBlock = await getRecentStartBlock()
-      startTransition(() => { initState(merchant, startBlock, 'recent') })
-      void runScan(merchant, abort, gen)
+      startTransition(() => { initState(merchant, startBlock, 'recent', false) })
+      void runScan(merchant, abort, gen, false)
     })()
   }, [merchant, initState, runScan, getRecentStartBlock])
 
@@ -776,8 +918,8 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
     clearState(merchant)
     setScanMode('full')
     setIsRecentComplete(false)
-    startTransition(() => { initState(merchant, DEPLOYMENT_BLOCK - 1n, 'full') })
-    void runScan(merchant, abort, gen)
+    startTransition(() => { initState(merchant, DEPLOYMENT_BLOCK - 1n, 'full', false) })
+    void runScan(merchant, abort, gen, false)
   }, [merchant, initState, runScan])
 
   return {

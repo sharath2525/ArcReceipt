@@ -213,8 +213,14 @@ export default function MerchantTodayPage() {
   const monthStart = thisMonthUtcStart()
 
   const merchant = MERCHANT_ADDRESS
-  const { createdEvents, paymentEvents, scanProgress, isScanning, rescan } =
-    useEventHistory(merchant)
+  const {
+    createdEvents, paymentEvents, scanProgress, isScanning, isRecentComplete, rescan,
+  } = useEventHistory(merchant)
+
+  // ── A5: Live request state — must come before useMemo blocks that read requestMap ──
+
+  const { requestMap, failedStatusCount, isLoading: requestsLoading } =
+    useMerchantAllRequests(merchant)
 
   // ── UTC day/month derived metrics ──────────────────────────────────────────
 
@@ -223,6 +229,50 @@ export default function MerchantTodayPage() {
     [createdEvents, todayStart]
   )
 
+  // D9 FIX (spec §1): "Collected today" and "Month collection" derive from
+  // requestMap (contract-authoritative, refreshed every 15s) rather than the
+  // event scan. requestMap.req.status===1 means Paid; req.paidAt is the
+  // on-chain timestamp. This gives accurate numbers as soon as requestMap
+  // loads, before the event scan finishes.
+  //
+  // paymentEvents are still used for the drill-down list (PayDrillRow) so the
+  // user can see per-payment details with payer addresses.
+
+  const todayPaymentsFromMap = useMemo(() => {
+    const result: Array<{ id: bigint; amount: bigint; paidAt: number }> = []
+    for (const [idStr, req] of requestMap.entries()) {
+      if (req.status !== 1) continue   // 0=Open, 1=Paid, 2=Cancelled, 3=Expired
+      const paidAt = Number(req.paidAt)
+      if (isInUtcDay(paidAt, todayStart)) {
+        result.push({ id: BigInt(idStr), amount: req.amount, paidAt })
+      }
+    }
+    return result
+  }, [requestMap, todayStart])
+
+  const thisMonthPaymentsFromMap = useMemo(() => {
+    const result: Array<{ id: bigint; amount: bigint; paidAt: number }> = []
+    for (const [idStr, req] of requestMap.entries()) {
+      if (req.status !== 1) continue
+      const paidAt = Number(req.paidAt)
+      if (isInUtcMonth(paidAt, monthStart)) {
+        result.push({ id: BigInt(idStr), amount: req.amount, paidAt })
+      }
+    }
+    return result
+  }, [requestMap, monthStart])
+
+  const collectedToday = useMemo(
+    () => sumBigInt(todayPaymentsFromMap.map(r => r.amount)),
+    [todayPaymentsFromMap]
+  )
+
+  const collectedThisMonth = useMemo(
+    () => sumBigInt(thisMonthPaymentsFromMap.map(r => r.amount)),
+    [thisMonthPaymentsFromMap]
+  )
+
+  // paymentEvents-based today list for drill-down rows (shows payer, receipt link)
   const todayPayments = useMemo(
     () => paymentEvents.filter(e => isInUtcDay(e.paidAt, todayStart)),
     [paymentEvents, todayStart]
@@ -232,21 +282,6 @@ export default function MerchantTodayPage() {
     () => paymentEvents.filter(e => isInUtcMonth(e.paidAt, monthStart)),
     [paymentEvents, monthStart]
   )
-
-  const collectedToday = useMemo(
-    () => sumBigInt(todayPayments.map(e => e.amount)),
-    [todayPayments]
-  )
-
-  const collectedThisMonth = useMemo(
-    () => sumBigInt(thisMonthPayments.map(e => e.amount)),
-    [thisMonthPayments]
-  )
-
-  // ── A5: Live request state for "Awaiting payment" ─────────────────────────
-
-  const { requestMap, failedStatusCount, isLoading: requestsLoading } =
-    useMerchantAllRequests(merchant)
 
   const createdAtMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -287,7 +322,10 @@ export default function MerchantTodayPage() {
   )
 
   // ── Incomplete / scan status ───────────────────────────────────────────────
-  const isIncomplete = !scanProgress.isComplete || scanProgress.failedRanges.length > 0
+  // D10 FIX: recentComplete is the correct flag for recent-mode scans.
+  // scanProgress.isComplete is only true for full-mode scans.
+  const coverageComplete = scanProgress.isComplete || isRecentComplete
+  const isIncomplete = !coverageComplete || scanProgress.failedRanges.length > 0
   const blocksRemaining = scanProgress.headBlock > scanProgress.scannedBlock
     ? scanProgress.headBlock - scanProgress.scannedBlock : 0n
 
@@ -372,10 +410,10 @@ export default function MerchantTodayPage() {
           id="collected"
           label="Collected today"
           value={formatUsdc(collectedToday)}
-          sub={`${todayPayments.length} payment${todayPayments.length !== 1 ? 's' : ''} · USDC`}
+          sub={`${todayPaymentsFromMap.length} payment${todayPaymentsFromMap.length !== 1 ? 's' : ''} · USDC`}
           icon={<TrendingUp size={16} />}
           highlight={collectedToday > 0n}
-          incomplete={isIncomplete}
+          incomplete={isIncomplete && requestsLoading}
           activeDrill={drill}
           onToggle={toggleDrill}
         >

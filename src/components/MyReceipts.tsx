@@ -1,26 +1,42 @@
 /**
- * MyReceipts — §6 of the implementation spec.
+ * MyReceipts — customer payment history (§6 of the implementation spec).
  *
- * Part 1 corrections:
- * - A1: getLogs now uses viem's TYPED event overload with payer in args,
- *       replacing the raw-topics cast that viem silently dropped.
- *       Post-decode validation still cross-checks payer/merchant/amount.
- * - A2: DEPLOYMENT_BLOCK from deployment.ts (67,462,931) — not hardcoded.
- * - Cache schema version bumped (v2); v1 entries are evicted on load.
+ * STAGE 2 IMPROVEMENTS:
  *
- * Scans PaymentRecorded events from deployment block forward, filtering
- * by the connected payer address, in 2,000-block chunks.
+ * D16 FIX — Generation counter (proper abort semantics).
+ *   Every new scan start increments a `generation` counter. Each async step
+ *   checks its own captured generation before writing state. A wallet switch
+ *   that starts generation N+1 will leave generation N's writes as no-ops,
+ *   even if several getLogs chunks are still in-flight at that moment.
+ *   (The old `abortRef` shared flag had a race: the new scan reset it to
+ *   `false` immediately, so the old scan could continue a few more chunks.)
  *
- * Data honesty:
- * - Never claims complete history until scan reaches chain head.
- * - Failed/error chunks do not clear known results.
- * - Wallet change clears displayed history; shared receipt links always work.
- * - No phone auth, no cross-wallet profiles, no personal data stored.
+ * D17 FIX — Retry / Update / Rebuild semantics.
+ *   Three explicit actions:
+ *   - Retry:   resumes from where the scan paused (after a network error).
+ *              Keeps cached records and continues from `scannedTo + 1`.
+ *   - Update:  rescans only new blocks from the cached cursor to chain head.
+ *              Fast path for checking for payments since last full scan.
+ *   - Rebuild: clears cache, rescans everything from deployment block.
+ *              Shows a confirmation prompt first.
+ *
+ * D18 FIX — "View receipt" link per row.
+ *   Each payment row now shows a /receipt/:id navigation link in addition
+ *   to the explorer TX link.
+ *
+ * Part 1 correctness preserved:
+ *   A1 — Typed ABI getLogs + args-based payer filter + post-decode validation.
+ *   A2 — DEPLOYMENT_BLOCK from deployment.ts (67,462,931).
+ *   Cache version bumped to v3 (D16 adds generation-aware cursor fields).
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAccount, usePublicClient } from 'wagmi'
 import { parseAbiItem } from 'viem'
-import { ExternalLink, RefreshCw, Loader2, Receipt, AlertCircle } from 'lucide-react'
+import {
+  ExternalLink, RefreshCw, Loader2, Receipt, AlertCircle,
+  RotateCcw, ArrowDownToLine,
+} from 'lucide-react'
 import { buildTxExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
 import {
@@ -29,12 +45,12 @@ import {
 import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
 import { formatAddr, formatTs } from '@/lib/ui'
 
-// A2: Deployment block from the single verified source
 const DEPLOYMENT_BLOCK = ARC_TESTNET_DEPLOYMENT.block
-const CHUNK_SIZE = 2_000n
-const CACHE_VERSION = 2
+const CHUNK_SIZE_START = 10_000n
+const CHUNK_SIZE_MIN   =  2_000n
+const CACHE_VERSION = 3   // bumped for D16 (generation-aware cursor)
 
-// A1: Typed ABI event — viem builds topic-0 and indexed-field filters correctly
+// A1: Typed ABI event
 const PAYMENT_RECORDED_ABI = parseAbiItem(
   'event PaymentRecorded(uint256 indexed id, address indexed merchant, address indexed payer, uint256 amount, uint256 paidAt)'
 )
@@ -49,19 +65,24 @@ interface PaymentRecord {
   blockNumber: bigint
 }
 
+// ── Cache ─────────────────────────────────────────────────────────────────────
+
 function storageKey(chainId: number, contract: string, payer: string): string {
   return `arc-receipt:my-receipts-v${CACHE_VERSION}:${chainId}:${contract.toLowerCase()}:${payer.toLowerCase()}`
 }
 
-/** Evict any v1 cache for this payer. */
 function evictOldCache(chainId: number, contract: string, payer: string): void {
-  try {
-    const v1 = `arc-receipt:my-receipts:${chainId}:${contract.toLowerCase()}:${payer.toLowerCase()}`
-    sessionStorage.removeItem(v1)
-  } catch { /* ignore */ }
+  for (const v of [1, 2]) {
+    try {
+      sessionStorage.removeItem(`arc-receipt:my-receipts-v${v}:${chainId}:${contract.toLowerCase()}:${payer.toLowerCase()}`)
+    } catch { /* ignore */ }
+  }
 }
 
-function validateRecord(r: unknown): r is { id: string; merchant: string; payer: string; amount: string; paidAt: string; txHash: string; blockNumber: string } {
+function validateRecord(r: unknown): r is {
+  id: string; merchant: string; payer: string; amount: string
+  paidAt: string; txHash: string; blockNumber: string
+} {
   if (!r || typeof r !== 'object') return false
   const o = r as Record<string, unknown>
   return (
@@ -75,17 +96,29 @@ function validateRecord(r: unknown): r is { id: string; merchant: string; payer:
   )
 }
 
-function loadCache(chainId: number, contract: string, payer: string): {
+interface CacheEntry {
   records: PaymentRecord[]
+  /** Lowest block scanned (downward scan floor). */
+  scannedFrom: bigint
+  /** Highest block scanned (forward/tail cursor). */
   scannedTo: bigint
-} | null {
+}
+
+function loadCache(chainId: number, contract: string, payer: string): CacheEntry | null {
   evictOldCache(chainId, contract, payer)
   try {
     const raw = sessionStorage.getItem(storageKey(chainId, contract, payer))
     if (!raw) return null
-    const parsed = JSON.parse(raw) as { version?: number; records: unknown[]; scannedTo: string }
+    const parsed = JSON.parse(raw) as {
+      version?: number
+      records: unknown[]
+      scannedFrom?: string
+      scannedTo: string
+    }
     if (parsed.version !== CACHE_VERSION) return null
     const scannedTo = BigInt(parsed.scannedTo)
+    const scannedFrom = typeof parsed.scannedFrom === 'string'
+      ? BigInt(parsed.scannedFrom) : DEPLOYMENT_BLOCK
     if (scannedTo < DEPLOYMENT_BLOCK - 1n) return null
     const records: PaymentRecord[] = (parsed.records ?? [])
       .filter(validateRecord)
@@ -98,77 +131,129 @@ function loadCache(chainId: number, contract: string, payer: string): {
         txHash: r.txHash,
         blockNumber: BigInt(r.blockNumber),
       }))
-    return { records, scannedTo }
+    return { records, scannedFrom, scannedTo }
   } catch { return null }
 }
 
 function saveCache(
   chainId: number, contract: string, payer: string,
-  records: PaymentRecord[], scannedTo: bigint
+  records: PaymentRecord[], scannedFrom: bigint, scannedTo: bigint
 ): void {
   try {
     sessionStorage.setItem(storageKey(chainId, contract, payer), JSON.stringify({
       version: CACHE_VERSION,
-      records: records.map(r => ({
-        id: r.id.toString(),
-        merchant: r.merchant,
-        payer: r.payer,
-        amount: r.amount.toString(),
-        paidAt: r.paidAt.toString(),
-        txHash: r.txHash,
-        blockNumber: r.blockNumber.toString(),
-      })),
+      scannedFrom: scannedFrom.toString(),
       scannedTo: scannedTo.toString(),
+      records: records.map(r => ({
+        id: r.id.toString(), merchant: r.merchant, payer: r.payer,
+        amount: r.amount.toString(), paidAt: r.paidAt.toString(),
+        txHash: r.txHash, blockNumber: r.blockNumber.toString(),
+      })),
     }))
   } catch { /* storage full */ }
 }
 
+function dedup(records: PaymentRecord[]): PaymentRecord[] {
+  return records
+    .filter((r, i, arr) => arr.findIndex(x => x.txHash === r.txHash && x.id === r.id) === i)
+    .sort((a, b) => Number(b.blockNumber - a.blockNumber))
+}
+
+// ── Scan modes ────────────────────────────────────────────────────────────────
+
+type ScanPhase = 'idle' | 'scanning' | 'paused' | 'complete' | 'error'
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export function MyReceipts() {
   const { address, chainId } = useAccount()
   const publicClient = usePublicClient({ chainId: ARC_TESTNET_ID })
+  const navigate = useNavigate()
 
-  const [records, setRecords]       = useState<PaymentRecord[]>([])
-  const [scannedTo, setScannedTo]   = useState<bigint | null>(null)
-  const [chainHead, setChainHead]   = useState<bigint | null>(null)
-  const [scanning, setScanning]     = useState(false)
-  const [error, setError]           = useState<string | null>(null)
-  const [complete, setComplete]     = useState(false)
+  const [records, setRecords]         = useState<PaymentRecord[]>([])
+  const [_scannedFrom, setScannedFrom] = useState<bigint>(DEPLOYMENT_BLOCK)
+  const [scannedTo, setScannedTo]     = useState<bigint | null>(null)
+  const [chainHead, setChainHead]     = useState<bigint | null>(null)
+  const [phase, setPhase]             = useState<ScanPhase>('idle')
+  const [error, setError]             = useState<string | null>(null)
+  const [showRebuildConfirm, setShowRebuildConfirm] = useState(false)
 
-  const abortRef    = useRef(false)
-  const scanningRef = useRef(false)
+  // D16: generation counter — each new scan start gets a unique number
+  const genRef = useRef(0)
+  // Mutable scan state shared between chunks
+  const scanStateRef = useRef<{
+    records: PaymentRecord[]
+    scannedFrom: bigint
+    scannedTo: bigint
+    chunkSize: bigint
+  } | null>(null)
 
-  const runScan = useCallback(async (payer: `0x${string}`, fromBlock: bigint) => {
-    if (!publicClient || scanningRef.current) return
-    scanningRef.current = true
-    abortRef.current = false
-    setScanning(true)
+  // ── Core scan function ─────────────────────────────────────────────────────
+
+  const doScan = useCallback(async (
+    payer: `0x${string}`,
+    fromBlock: bigint,
+    /** toBlock = undefined means scan downward to fromBlock from head */
+    toBlock: bigint | undefined,
+    /** seed records from cache */
+    seedRecords: PaymentRecord[],
+    seedScannedFrom: bigint,
+    seedScannedTo: bigint,
+    myGen: number
+  ) => {
+    if (!publicClient) return
+
+    const isCur = () => genRef.current === myGen
+
+    scanStateRef.current = {
+      records: seedRecords,
+      scannedFrom: seedScannedFrom,
+      scannedTo: seedScannedTo,
+      chunkSize: CHUNK_SIZE_START,
+    }
+    setPhase('scanning')
     setError(null)
 
     try {
-      const head = await publicClient.getBlockNumber()
+      let head: bigint
+      try {
+        head = await publicClient.getBlockNumber()
+      } catch {
+        if (isCur()) { setPhase('error'); setError('Failed to fetch chain head') }
+        return
+      }
+      if (!isCur()) return
       setChainHead(head)
 
+      const scanTo = toBlock !== undefined ? toBlock : head
       let cursor = fromBlock
-      const accumulated: PaymentRecord[] = []
 
-      while (cursor <= head && !abortRef.current) {
-        const to = cursor + CHUNK_SIZE - 1n < head ? cursor + CHUNK_SIZE - 1n : head
-        let chunkOk = false
+      while (cursor <= scanTo) {
+        if (!isCur()) return
 
-        // Try full chunk; on failure retry with half the range
-        for (const [cFrom, cTo] of [[cursor, to], [cursor, cursor + CHUNK_SIZE / 2n - 1n < head ? cursor + CHUNK_SIZE / 2n - 1n : head]] as [bigint, bigint][]) {
+        const { chunkSize } = scanStateRef.current
+        let chunkTo = cursor + chunkSize - 1n < scanTo ? cursor + chunkSize - 1n : scanTo
+        let success = false
+
+        // S2-A style: adaptive retry — try current range, then half
+        for (let attempt = 0; attempt < 3 && !success; attempt++) {
+          if (!isCur()) return
+          const from = cursor
+          const to = attempt === 0 ? chunkTo : (cursor + scanStateRef.current.chunkSize / 2n - 1n < scanTo ? cursor + scanStateRef.current.chunkSize / 2n - 1n : scanTo)
+
           try {
-            // A1: Typed event + args-based payer filter
             const logs = await publicClient.getLogs({
               address: CONTRACT_ADDRESS as `0x${string}`,
               event: PAYMENT_RECORDED_ABI,
               args: { payer },
-              fromBlock: cFrom,
-              toBlock: cTo,
+              fromBlock: from,
+              toBlock: to,
             })
 
+            if (!isCur()) return
+
+            const newRecs: PaymentRecord[] = []
             for (const log of logs) {
-              // A1: Post-decode strict validation
               if (log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) continue
               const a = log.args
               if (!a) continue
@@ -181,110 +266,189 @@ export function MyReceipts() {
               if (!merchant) continue
               if (!amount || amount <= 0n) continue
               if (!paidAt || paidAt <= 0n) continue
-
-              accumulated.push({
-                id,
-                merchant: merchant.toLowerCase(),
-                payer: logPayer.toLowerCase(),
-                amount,
-                paidAt,
+              newRecs.push({
+                id, merchant: merchant.toLowerCase(),
+                payer: logPayer.toLowerCase(), amount, paidAt,
                 txHash: log.transactionHash ?? '',
                 blockNumber: log.blockNumber ?? 0n,
               })
             }
 
-            setScannedTo(cTo)
-            if (cTo < to) {
-              // Used half-chunk; advance by half
-              cursor = cTo + 1n
-            } else {
-              cursor = to + 1n
+            scanStateRef.current.records = dedup([...scanStateRef.current.records, ...newRecs])
+            // Update forward cursor
+            if (to > scanStateRef.current.scannedTo) scanStateRef.current.scannedTo = to
+            if (from < scanStateRef.current.scannedFrom) scanStateRef.current.scannedFrom = from
+            chunkTo = to
+            success = true
+          } catch (e) {
+            const msg = (e as Error)?.message ?? ''
+            const isRangeErr = /range|limit|timeout|too many|block range/i.test(msg)
+            if (isRangeErr && scanStateRef.current.chunkSize > CHUNK_SIZE_MIN) {
+              scanStateRef.current.chunkSize = scanStateRef.current.chunkSize / 2n
             }
-            chunkOk = true
-            break
-          } catch {
-            if (cFrom === cursor && cTo === to) {
-              // Full chunk failed; will try half next iteration
-              continue
+            if (attempt === 2 || !isRangeErr) {
+              // Non-recoverable for this chunk — pause
+              if (isCur()) {
+                saveCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, payer,
+                  scanStateRef.current.records,
+                  scanStateRef.current.scannedFrom,
+                  scanStateRef.current.scannedTo)
+                setRecords(dedup([...scanStateRef.current.records]))
+                setScannedFrom(scanStateRef.current.scannedFrom)
+                setScannedTo(scanStateRef.current.scannedTo)
+                setError('Network error — scan paused. Use Retry to continue.')
+                setPhase('paused')
+              }
+              return
             }
-            // Half chunk also failed
-            const msg = 'Network error — partial scan paused'
-            setRecords(prev => {
-              const merged = dedup([...prev, ...accumulated])
-              saveCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, payer, merged, cursor - 1n)
-              return merged
-            })
-            setError(msg)
-            scanningRef.current = false
-            setScanning(false)
-            return
           }
         }
 
-        if (!chunkOk) {
-          const msg = 'Network error — partial scan paused'
-          setRecords(prev => {
-            const merged = dedup([...prev, ...accumulated])
-            saveCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, payer, merged, cursor - 1n)
-            return merged
-          })
-          setError(msg)
-          scanningRef.current = false
-          setScanning(false)
-          return
+        if (!success) {
+          // Couldn't recover — break out
+          break
         }
+
+        if (isCur()) {
+          setRecords(dedup([...scanStateRef.current.records]))
+          setScannedTo(scanStateRef.current.scannedTo)
+          setScannedFrom(scanStateRef.current.scannedFrom)
+        }
+
+        saveCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, payer,
+          scanStateRef.current.records,
+          scanStateRef.current.scannedFrom,
+          scanStateRef.current.scannedTo)
+
+        cursor = chunkTo + 1n
       }
 
-      if (!abortRef.current) {
-        setRecords(prev => {
-          const merged = dedup([...prev, ...accumulated])
-          saveCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, payer, merged, head)
-          return merged
-        })
-        setScannedTo(head)
-        setComplete(true)
+      if (isCur()) {
+        setRecords(dedup([...scanStateRef.current.records]))
+        setScannedTo(scanStateRef.current.scannedTo)
+        setScannedFrom(scanStateRef.current.scannedFrom)
+        setChainHead(head)
+        setPhase('complete')
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message.slice(0, 120) : 'Scan failed')
-    } finally {
-      scanningRef.current = false
-      setScanning(false)
+      if (isCur()) {
+        setError(e instanceof Error ? e.message.slice(0, 120) : 'Scan failed')
+        setPhase('error')
+      }
     }
   }, [publicClient])
 
-  // Start / restart scan when address changes
+  // ── Wallet change effect ───────────────────────────────────────────────────
+
   useEffect(() => {
-    abortRef.current = true
-    setComplete(false)
-    setError(null)
+    // D16: increment generation — any in-flight scan with old gen becomes a no-op
+    genRef.current += 1
+    const myGen = genRef.current
+
+    setShowRebuildConfirm(false)
 
     if (!address || chainId !== ARC_TESTNET_ID) {
       setRecords([])
       setScannedTo(null)
+      setScannedFrom(DEPLOYMENT_BLOCK)
       setChainHead(null)
+      setPhase('idle')
+      setError(null)
       return
     }
 
+    // Load cache and start tail scan from the cached head
     const cached = loadCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, address)
-    if (cached) {
+    if (cached && cached.records.length > 0) {
+      // Show cached records immediately
       setRecords(cached.records)
+      setScannedFrom(cached.scannedFrom)
       setScannedTo(cached.scannedTo)
-      void runScan(address, cached.scannedTo + 1n)
+      setPhase('scanning')
+      setError(null)
+      // D17: Update from the cached head (tail-only scan from scannedTo+1 to head)
+      void doScan(
+        address, cached.scannedTo + 1n, undefined,
+        cached.records, cached.scannedFrom, cached.scannedTo,
+        myGen
+      )
     } else {
+      // No cache — fresh scan from deployment block
       setRecords([])
-      void runScan(address, DEPLOYMENT_BLOCK)
+      setScannedFrom(DEPLOYMENT_BLOCK)
+      setScannedTo(null)
+      setChainHead(null)
+      setPhase('scanning')
+      setError(null)
+      void doScan(
+        address, DEPLOYMENT_BLOCK, undefined,
+        [], DEPLOYMENT_BLOCK, DEPLOYMENT_BLOCK - 1n,
+        myGen
+      )
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, chainId])
 
-  const handleRefresh = useCallback(() => {
-    if (!address || scanning) return
-    sessionStorage.removeItem(storageKey(ARC_TESTNET_ID, CONTRACT_ADDRESS, address))
+  // ── D17: Action handlers ──────────────────────────────────────────────────
+
+  /** Retry: resume from where scan paused (keeps cache, advances from scannedTo+1). */
+  const handleRetry = useCallback(() => {
+    if (!address || phase === 'scanning') return
+    genRef.current += 1
+    const myGen = genRef.current
+    const cached = loadCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, address)
+    setError(null)
+    if (cached) {
+      setPhase('scanning')
+      void doScan(
+        address, cached.scannedTo + 1n, undefined,
+        cached.records, cached.scannedFrom, cached.scannedTo,
+        myGen
+      )
+    } else {
+      setPhase('scanning')
+      void doScan(
+        address, DEPLOYMENT_BLOCK, undefined,
+        [], DEPLOYMENT_BLOCK, DEPLOYMENT_BLOCK - 1n,
+        myGen
+      )
+    }
+  }, [address, phase, doScan])
+
+  /** Update: scan from cached head to chain head (new payments only). Fast. */
+  const handleUpdate = useCallback(() => {
+    if (!address || phase === 'scanning') return
+    genRef.current += 1
+    const myGen = genRef.current
+    const cached = loadCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, address)
+    const fromBlock = cached ? cached.scannedTo + 1n : DEPLOYMENT_BLOCK
+    const seedRec = cached?.records ?? []
+    const seedFrom = cached?.scannedFrom ?? DEPLOYMENT_BLOCK
+    const seedTo = cached?.scannedTo ?? DEPLOYMENT_BLOCK - 1n
+    setError(null)
+    setPhase('scanning')
+    void doScan(address, fromBlock, undefined, seedRec, seedFrom, seedTo, myGen)
+  }, [address, phase, doScan])
+
+  /** Rebuild: clear cache, rescan from deployment block. Shows confirmation. */
+  const handleRebuild = useCallback(() => {
+    if (!address || phase === 'scanning') return
+    try { sessionStorage.removeItem(storageKey(ARC_TESTNET_ID, CONTRACT_ADDRESS, address)) } catch { /* ignore */ }
+    genRef.current += 1
+    const myGen = genRef.current
     setRecords([])
+    setScannedFrom(DEPLOYMENT_BLOCK)
     setScannedTo(null)
-    setComplete(false)
-    void runScan(address, DEPLOYMENT_BLOCK)
-  }, [address, scanning, runScan])
+    setChainHead(null)
+    setError(null)
+    setShowRebuildConfirm(false)
+    setPhase('scanning')
+    void doScan(
+      address, DEPLOYMENT_BLOCK, undefined,
+      [], DEPLOYMENT_BLOCK, DEPLOYMENT_BLOCK - 1n,
+      myGen
+    )
+  }, [address, phase, doScan])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -308,13 +472,16 @@ export function MyReceipts() {
     )
   }
 
+  const isScanning = phase === 'scanning'
+  const isComplete = phase === 'complete'
+  const isPaused   = phase === 'paused'
+
   const progress = chainHead !== null && scannedTo !== null
     ? `Block ${scannedTo.toString()} / ${chainHead.toString()}`
     : null
 
   const remaining = chainHead !== null && scannedTo !== null
-    ? chainHead - scannedTo
-    : null
+    ? chainHead - scannedTo : null
 
   return (
     <div className="space-y-4">
@@ -324,27 +491,30 @@ export function MyReceipts() {
           <p className="text-sm font-semibold text-slate-800">Payments made by</p>
           <p className="text-xs font-mono text-slate-500">{formatAddr(address)}</p>
         </div>
+        {/* D17: Update button — fast tail scan */}
         <button
-          onClick={handleRefresh}
-          disabled={scanning}
+          onClick={handleUpdate}
+          disabled={isScanning}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-xs font-medium text-slate-700 transition-colors"
         >
-          <RefreshCw size={12} className={scanning ? 'animate-spin' : ''} />
-          {scanning ? 'Scanning…' : 'Refresh'}
+          <RefreshCw size={12} className={isScanning ? 'animate-spin' : ''} />
+          {isScanning ? 'Scanning…' : 'Update'}
         </button>
       </div>
 
       {/* Scan progress */}
-      {(scanning || (!complete && scannedTo !== null)) && (
+      {(isScanning || (!isComplete && scannedTo !== null)) && (
         <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500 space-y-1">
           <div className="flex items-center gap-2">
-            <Loader2 size={12} className={scanning ? 'animate-spin text-emerald-500' : 'text-slate-400'} />
+            <Loader2 size={12} className={isScanning ? 'animate-spin text-emerald-500' : 'text-slate-400'} />
             <span className="font-medium">
-              {complete
+              {isComplete
                 ? 'Scan complete'
-                : scanning
+                : isScanning
                 ? 'Scanning for payments…'
-                : 'Partial scan — tap Refresh to continue'}
+                : isPaused
+                ? 'Scan paused — use Retry to continue'
+                : 'Partial scan'}
             </span>
           </div>
           {progress && (
@@ -354,84 +524,132 @@ export function MyReceipts() {
           )}
           <p className="text-slate-400">
             Starting from deployment block {DEPLOYMENT_BLOCK.toString()}.
-            {!complete && ' History may be incomplete until scan finishes.'}
+            {!isComplete && ' History may be incomplete until scan finishes.'}
           </p>
         </div>
       )}
 
-      {error && records.length === 0 ? (
-        <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 space-y-3">
+      {/* Error state with per-error actions */}
+      {error && (
+        <div className={`rounded-xl border p-3 space-y-2 ${
+          records.length === 0
+            ? 'bg-rose-50 border-rose-200'
+            : 'bg-amber-50 border-amber-200'
+        }`}>
           <div className="flex items-start gap-2">
-            <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-500" />
+            <AlertCircle size={13} className={`shrink-0 mt-0.5 ${records.length === 0 ? 'text-rose-500' : 'text-amber-500'}`} />
             <div>
-              <p className="text-sm font-medium text-rose-700">Unable to load payment history</p>
-              <p className="text-xs text-rose-600 mt-0.5">{error}</p>
+              <p className={`text-xs font-medium ${records.length === 0 ? 'text-rose-700' : 'text-amber-700'}`}>
+                {records.length === 0 ? 'Unable to load payment history' : 'Scan paused — partial results shown'}
+              </p>
+              <p className={`text-xs mt-0.5 ${records.length === 0 ? 'text-rose-600' : 'text-amber-600'}`}>{error}</p>
             </div>
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={scanning}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-100 hover:bg-rose-200 disabled:opacity-50 text-sm font-semibold text-rose-700 transition-colors"
-          >
-            <RefreshCw size={13} className={scanning ? 'animate-spin' : ''} />
-            {scanning ? 'Retrying…' : 'Retry'}
-          </button>
+          {/* D17: Retry = resume from pause cursor; Update = tail only; Rebuild = full */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={handleRetry}
+              disabled={isScanning}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-xs font-medium text-slate-700 transition-colors"
+            >
+              <RotateCcw size={11} className={isScanning ? 'animate-spin' : ''} />
+              Retry
+            </button>
+            <button
+              onClick={handleUpdate}
+              disabled={isScanning}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-xs font-medium text-slate-700 transition-colors"
+            >
+              <ArrowDownToLine size={11} /> Update
+            </button>
+            {!showRebuildConfirm ? (
+              <button
+                onClick={() => setShowRebuildConfirm(true)}
+                disabled={isScanning}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-xs font-medium text-slate-500 transition-colors"
+              >
+                <RefreshCw size={11} /> Rebuild
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-amber-600">Clear cache and rescan all?</span>
+                <button onClick={handleRebuild} disabled={isScanning}
+                  className="text-xs font-semibold text-rose-600 hover:underline disabled:opacity-50">
+                  Yes
+                </button>
+                <button onClick={() => setShowRebuildConfirm(false)}
+                  className="text-xs text-slate-500 hover:underline">
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Rebuild confirmation (non-error path) */}
+      {!error && !isScanning && isComplete && (
+        <div className="text-xs text-slate-400 flex items-center justify-between gap-2">
+          <p>History belongs to this wallet. Switching wallets changes the displayed history.</p>
+          {!showRebuildConfirm ? (
+            <button
+              onClick={() => setShowRebuildConfirm(true)}
+              className="shrink-0 inline-flex items-center gap-1 text-slate-400 hover:text-slate-600 hover:underline"
+            >
+              <RefreshCw size={11} /> Rebuild
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-amber-600">Clear cache and rescan all?</span>
+              <button onClick={handleRebuild} className="text-xs font-semibold text-rose-600 hover:underline">Yes</button>
+              <button onClick={() => setShowRebuildConfirm(false)} className="text-xs text-slate-500 hover:underline">Cancel</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!error && (
+        <p className="text-xs text-slate-400">
+          History belongs to this wallet. Switching wallets changes the displayed history.
+          Shared receipt links always work without a wallet.
+        </p>
+      )}
+
+      {records.length === 0 && !isScanning && !error ? (
+        <div className="rounded-2xl bg-white border border-slate-200 p-6 text-center space-y-1">
+          <p className="text-sm font-semibold text-slate-600">
+            {isComplete ? 'No payments found' : 'No payments found yet'}
+          </p>
+          <p className="text-xs text-slate-400">
+            {isComplete
+              ? 'This wallet has not paid any requests through ArcReceipt.'
+              : 'Scan in progress — results will appear as blocks are scanned.'}
+          </p>
         </div>
       ) : (
-        <>
-          {error && records.length > 0 && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2 text-xs text-amber-700">
-              <AlertCircle size={12} className="shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">Scan paused — partial results shown</p>
-                <p className="truncate">{error}</p>
-              </div>
-              <button
-                onClick={handleRefresh}
-                disabled={scanning}
-                className="shrink-0 flex items-center gap-1 text-amber-700 hover:text-amber-900 font-medium disabled:opacity-50"
-              >
-                <RefreshCw size={11} className={scanning ? 'animate-spin' : ''} /> Retry
-              </button>
-            </div>
-          )}
-
-          <p className="text-xs text-slate-400">
-            History belongs to this wallet. Switching wallets changes the displayed history.
-            Shared receipt links always work without a wallet.
-          </p>
-
-          {records.length === 0 && !scanning ? (
-            <div className="rounded-2xl bg-white border border-slate-200 p-6 text-center space-y-1">
-              <p className="text-sm font-semibold text-slate-600">
-                {complete ? 'No payments found' : 'No payments found yet'}
-              </p>
-              <p className="text-xs text-slate-400">
-                {complete
-                  ? 'This wallet has not paid any requests through ArcReceipt.'
-                  : 'Scan in progress — results will appear as blocks are scanned.'}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {records.map((rec) => (
-                <PaymentRecordRow key={rec.txHash || rec.id.toString()} rec={rec} />
-              ))}
-            </div>
-          )}
-        </>
+        <div className="space-y-2">
+          {records.map((rec) => (
+            <PaymentRecordRow
+              key={rec.txHash || rec.id.toString()}
+              rec={rec}
+              onViewReceipt={(id) => void navigate(`/receipt/${id.toString()}`)}
+            />
+          ))}
+        </div>
       )}
     </div>
   )
 }
 
-function dedup(records: PaymentRecord[]): PaymentRecord[] {
-  return records
-    .filter((r, i, arr) => arr.findIndex(x => x.txHash === r.txHash && x.id === r.id) === i)
-    .sort((a, b) => Number(b.blockNumber - a.blockNumber))
-}
+// ── Row component ─────────────────────────────────────────────────────────────
 
-function PaymentRecordRow({ rec }: { rec: PaymentRecord }) {
+function PaymentRecordRow({
+  rec,
+  onViewReceipt,
+}: {
+  rec: PaymentRecord
+  onViewReceipt: (id: bigint) => void
+}) {
   const explorerUrl = buildTxExplorerUrl(ARC_TESTNET_ID, rec.txHash)
 
   return (
@@ -456,15 +674,24 @@ function PaymentRecordRow({ rec }: { rec: PaymentRecord }) {
           Paid
         </span>
       </div>
-      {rec.txHash && (
-        <a
-          href={explorerUrl}
-          target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+      {/* D18: receipt link + explorer link */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => onViewReceipt(rec.id)}
+          className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline font-medium"
         >
-          <ExternalLink size={11} /> View transaction
-        </a>
-      )}
+          <Receipt size={11} /> View receipt
+        </button>
+        {rec.txHash && (
+          <a
+            href={explorerUrl}
+            target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:underline"
+          >
+            <ExternalLink size={11} /> Explorer
+          </a>
+        )}
+      </div>
     </div>
   )
 }

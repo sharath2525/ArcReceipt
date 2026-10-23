@@ -36,9 +36,11 @@ import {
 } from 'lucide-react'
 import { useEventHistory } from '@/lib/use-event-history'
 import { useMerchantAllRequests } from '@/lib/use-merchant-requests'
+import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
 import {
   thisMonthUtcStart, dayStartUtc, nextDayStartUtc,
-  monthStartUtc, nextMonthStartUtc, daysInUtcMonth,
+  nextMonthStartUtc, previousMonthStart,
+  daysInUtcMonth,
   formatUtcDay, formatUtcMonth, sumBigInt, nowSecs,
 } from '@/lib/utc-periods'
 import { formatUsdc } from '@/onchain-money'
@@ -73,7 +75,9 @@ function buildPeriods(now: number): PeriodSpec[] {
   const todayStart = dayStartUtc(now)
   const yesterdayStart = dayStartUtc(now - 86400)
   const thisMonth = thisMonthUtcStart()
-  const lastMonthStart = monthStartUtc(now - 86400 * 32)
+  // D11 FIX: use previousMonthStart(now) — correct for all months including
+  // January (monthStartUtc(now - 32 days) gave August when called on Oct 1).
+  const lastMonthStart = previousMonthStart(now)
   return [
     { key: 'today',      label: 'Today',      fromSecs: todayStart,     toSecs: nextDayStartUtc(now) },
     { key: 'yesterday',  label: 'Yesterday',  fromSecs: yesterdayStart, toSecs: todayStart },
@@ -144,77 +148,112 @@ function statusBadge(status: string): string {
 
 // ── Scan banner ───────────────────────────────────────────────────────────────
 
+/**
+ * D12 FIX: "Load full history" is now always accessible as a separate action,
+ * not hidden behind a completion state. This removes the unreachable-button bug
+ * where the button only appeared after the recent scan finished.
+ *
+ * D15 FIX: uses scanProgress.recentComplete (set by recent-mode scans) for
+ * the "Recent history loaded" banner, not scanProgress.isComplete (which is
+ * only true for full-mode scans).
+ */
 function ScanBanner({
   isScanning, scanProgress, scanMode, onRescan, onRescanFull,
 }: {
   isScanning: boolean
-  scanProgress: { scannedBlock: bigint; headBlock: bigint; isComplete: boolean; failedRanges: { fromBlock: bigint; toBlock: bigint; error: string }[] }
+  scanProgress: { scannedBlock: bigint; headBlock: bigint; isComplete: boolean; recentComplete: boolean; failedRanges: { fromBlock: bigint; toBlock: bigint; error: string }[] }
   scanMode: ScanMode
   onRescan: () => void
   onRescanFull: () => void
 }) {
   const [showFullWarning, setShowFullWarning] = useState(false)
 
-  if (!isScanning && scanProgress.isComplete && scanProgress.failedRanges.length === 0) {
+  // D15 FIX: derive "coverage complete" from the right flag
+  const coverageComplete = scanProgress.isComplete || scanProgress.recentComplete
+  const actualBlocks = scanProgress.headBlock - scanProgress.scannedBlock
+  const blocksLeft = actualBlocks > 0n ? actualBlocks : 0n
+
+  // "Load full history" action — D12: always available, not hidden behind complete state
+  const loadFullHistoryAction = scanMode !== 'full' && (
+    showFullWarning ? (
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-amber-600">
+          Scans from block {ARC_TESTNET_DEPLOYMENT.block.toString()} to head — may take several minutes.
+        </span>
+        <button onClick={() => { setShowFullWarning(false); onRescanFull() }}
+          className="text-rose-600 font-medium hover:underline text-xs">Yes, scan all</button>
+        <button onClick={() => setShowFullWarning(false)}
+          className="hover:underline text-xs">Cancel</button>
+      </div>
+    ) : (
+      <button onClick={() => setShowFullWarning(true)}
+        className="text-slate-400 hover:text-slate-600 underline text-xs shrink-0">
+        Load full history
+      </button>
+    )
+  )
+
+  if (!isScanning && coverageComplete && scanProgress.failedRanges.length === 0) {
     return (
       <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
         <div className="flex items-center gap-1.5">
           <CheckCircle size={13} className="text-emerald-500" />
-          <span>{scanMode === 'recent' ? 'Recent history loaded' : 'Full history loaded'} · block {scanProgress.headBlock.toString()}</span>
+          <span>
+            {scanProgress.isComplete ? 'Full history loaded' : 'Recent history loaded'}
+            {' '}· block {scanProgress.headBlock.toString()}
+          </span>
         </div>
-        {scanMode === 'recent' && !showFullWarning && (
-          <button onClick={() => setShowFullWarning(true)}
-            className="text-slate-400 hover:text-slate-600 underline">
-            Load full history
-          </button>
-        )}
-        {scanMode === 'recent' && showFullWarning && (
-          <div className="flex items-center gap-2">
-            <span className="text-amber-600">Scans ~65M blocks — may take a while.</span>
-            <button onClick={() => { setShowFullWarning(false); onRescanFull() }}
-              className="text-rose-600 font-medium hover:underline">Yes, scan all</button>
-            <button onClick={() => setShowFullWarning(false)} className="hover:underline">Cancel</button>
-          </div>
-        )}
+        {loadFullHistoryAction}
       </div>
     )
   }
 
   if (isScanning) {
-    const blocksLeft = scanProgress.headBlock > scanProgress.scannedBlock
-      ? scanProgress.headBlock - scanProgress.scannedBlock : 0n
     return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-2.5 text-xs text-slate-600">
-        <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />
-        <span className="flex-1">
-          Scanning {scanMode === 'full' ? 'full' : 'recent'} history…{' '}
-          <span className="text-slate-400">{blocksLeft.toString()} blocks remaining · block {scanProgress.scannedBlock.toString()}</span>
-        </span>
-        <span className="text-amber-500 font-medium">Totals incomplete</span>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-1.5">
+        <div className="flex items-center gap-2.5 text-xs text-slate-600">
+          <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />
+          <span className="flex-1">
+            Scanning {scanMode === 'full' ? 'full' : 'recent'} history…{' '}
+            <span className="text-slate-400">
+              {blocksLeft.toString()} blocks remaining · block {scanProgress.scannedBlock.toString()}
+            </span>
+          </span>
+          <span className="text-amber-500 font-medium text-xs">Totals incomplete</span>
+        </div>
+        {/* D12: show Load full history even while scanning */}
+        <div className="pl-5">{loadFullHistoryAction}</div>
       </div>
     )
   }
 
-  // Only show amber warning when there are actual failures — not during initial load
-  if (scanProgress.failedRanges.length === 0) {
+  if (scanProgress.failedRanges.length > 0) {
     return (
+      <div className="space-y-1.5">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-center gap-2.5 text-xs text-amber-700">
+          <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+          <span className="flex-1">
+            {scanProgress.failedRanges.length} range(s) failed — some totals may be missing.
+            Failed ranges are not counted as zero.
+          </span>
+          <button onClick={onRescan}
+            className="flex items-center gap-0.5 font-medium hover:underline shrink-0">
+            <RefreshCw size={11} /> Retry
+          </button>
+        </div>
+        <div className="pl-1">{loadFullHistoryAction}</div>
+      </div>
+    )
+  }
+
+  // Scanning has not started yet or is in initial load
+  return (
+    <div className="space-y-1.5">
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-2 text-xs text-slate-500">
         <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />
         <span>Loading history — totals incomplete until scan finishes</span>
       </div>
-    )
-  }
-
-  return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-center gap-2.5 text-xs text-amber-700">
-      <AlertTriangle size={13} className="text-amber-500 shrink-0" />
-      <span className="flex-1">
-        {scanProgress.failedRanges.length} range(s) failed — some totals may be missing.
-      </span>
-      <button onClick={onRescan}
-        className="flex items-center gap-0.5 font-medium hover:underline">
-        <RefreshCw size={11} /> Retry
-      </button>
+      <div className="pl-1">{loadFullHistoryAction}</div>
     </div>
   )
 }
@@ -371,7 +410,7 @@ function DetailTable({
   const [page, setPage] = useState(1)
   const nav = useNavigate()
 
-  // Filter
+  // D13 FIX: filter AND sort rows by the chosen date column
   const filtered = useMemo(() => {
     let result = rows
     if (search.trim()) {
@@ -382,8 +421,18 @@ function DetailTable({
       const want = statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)
       result = result.filter(r => r.status === want)
     }
+    // Sort by the selected date column (newest first)
+    result = [...result].sort((a, b) => {
+      const aTs = dateFilter === 'payment'
+        ? (a.paidAt ?? a.createdAt ?? 0)
+        : (a.createdAt ?? a.paidAt ?? 0)
+      const bTs = dateFilter === 'payment'
+        ? (b.paidAt ?? b.createdAt ?? 0)
+        : (b.createdAt ?? b.paidAt ?? 0)
+      return bTs - aTs
+    })
     return result
-  }, [rows, search, statusFilter])
+  }, [rows, search, statusFilter, dateFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -420,20 +469,20 @@ function DetailTable({
           <option value="cancelled">Cancelled</option>
         </select>
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
-          <span>Date =</span>
+          <span>Sort by</span>
           <button
-            onClick={() => setDateFilter(d => d === 'payment' ? 'creation' : 'payment')}
+            onClick={() => { setDateFilter(d => d === 'payment' ? 'creation' : 'payment'); setPage(1) }}
             className="px-2 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 font-medium"
-            title="Toggle between payment date and creation date"
+            title="Toggle sort between payment date and creation date"
           >
             {dateFilter === 'payment' ? 'Payment date' : 'Creation date'}
           </button>
         </div>
       </div>
 
-      {/* Date filter label */}
+      {/* Sort label */}
       <p className="text-xs text-slate-400">
-        Filtering by <span className="font-semibold text-slate-600">
+        Sorted by <span className="font-semibold text-slate-600">
           {dateFilter === 'payment' ? 'payment date (paidAt)' : 'creation date (RequestCreated block timestamp)'}
         </span> · {filtered.length} record{filtered.length !== 1 ? 's' : ''}
         {incomplete && <span className="text-amber-500"> · scan incomplete, some records may be missing</span>}
@@ -713,8 +762,10 @@ export default function MerchantReportsPage() {
   const merchant = MERCHANT_ADDRESS
   const now = nowSecs()
 
-  const { createdEvents, paymentEvents, scanProgress, isScanning, scanMode, rescan, rescanFull } =
-    useEventHistory(merchant)
+  const {
+    createdEvents, paymentEvents, scanProgress, isScanning,
+    scanMode, isRecentComplete, rescan, rescanFull,
+  } = useEventHistory(merchant)
 
   const { requestMap } = useMerchantAllRequests(merchant)
 
@@ -747,7 +798,10 @@ export default function MerchantReportsPage() {
     [paymentEvents, activePeriodSpec]
   )
 
-  const isIncomplete = !scanProgress.isComplete || scanProgress.failedRanges.length > 0
+  // D15 FIX: recent-mode scans set recentComplete (not isComplete) when done.
+  // isComplete is only true for full-mode scans.
+  const coverageComplete = scanProgress.isComplete || isRecentComplete
+  const isIncomplete = !coverageComplete || scanProgress.failedRanges.length > 0
 
   // ── Build detail rows ──────────────────────────────────────────────────────
   // Join createdEvents and paymentEvents by requestId for the period.
@@ -829,12 +883,12 @@ export default function MerchantReportsPage() {
       activePeriodSpec.fromSecs,
       activePeriodSpec.toSecs,
       scanProgress.headBlock.toString(),
-      scanProgress.isComplete,
+      coverageComplete,    // D15 FIX: use combined flag
       detailRows,
     )
     const date = new Date().toISOString().slice(0, 10)
     downloadCsv(csv, `arcreceipt-${activePeriod}-${date}.csv`)
-  }, [isIncomplete, showExportWarning, activePeriodSpec, merchant, scanProgress, detailRows, activePeriod])
+  }, [isIncomplete, showExportWarning, activePeriodSpec, merchant, scanProgress, coverageComplete, detailRows, activePeriod])
 
   const handlePrint = useCallback(() => {
     window.print()

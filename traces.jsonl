@@ -258,3 +258,5 @@
 {"type":"event","event":{"event":{"kind":"http","id":"030be602-3","timestamp":1792579522655,"method":"HEAD","url":"https://euc.li/sh555.eth","status":200,"duration":124,"responseBody":""},"enrichmentStatus":"none"}}
 {"type":"event","event":{"event":{"kind":"http","id":"141baeeb-3","timestamp":1792585305427,"method":"HEAD","url":"https://euc.li/sh555.eth","status":200,"duration":316,"responseBody":""},"enrichmentStatus":"none"}}
 {"type":"event","event":{"event":{"kind":"http","id":"cc08abf6-3","timestamp":1792586286747,"method":"HEAD","url":"https://euc.li/sh555.eth","status":200,"duration":436,"responseBody":""},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"http","id":"56a38707-3","timestamp":1792732253129,"method":"HEAD","url":"https://euc.li/sh555.eth","status":200,"duration":103,"responseBody":""},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"http","id":"56a38707-5","timestamp":1792732271161,"method":"HEAD","url":"https://euc.li/sh555.eth","status":200,"duration":196,"responseBody":""},"enrichmentStatus":"none"}}

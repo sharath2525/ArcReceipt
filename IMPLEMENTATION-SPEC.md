@@ -1031,3 +1031,77 @@ The workspace shows "Merchant address not configured" until this is set.
 - Cancel hash restoration sets `cancelStatus='confirming'` but cannot recover `cancellingId` from sessionStorage (it was not persisted). The per-row cancel indicator therefore does not show during restored tracking — the banner does show via `useWaitForTransactionReceipt`.
 - `refetchInterval: 8_000` on individual rows means up to 8 s delay between a payment and a merchant seeing the row update. This is an acceptable trade-off vs RPC rate-limiting at 1.5s per row with many rows mounted.
 - Live tests (S1-T1 through S1-T6) require testnet USDC, two wallets and controlled conditions. None have been run in this session.
+
+---
+
+## STAGE 2 — ACCURATE AND FASTER REPORTING / HISTORY (2026-10-23)
+
+### Exact defects fixed
+
+| ID | File | Defect |
+|----|------|--------|
+| D9 | `MerchantTodayPage` | "Collected today" / "Month" used `paymentEvents` (event scan); now uses `requestMap` (status=1, paidAt from contract — authoritative, refreshed every 15s). |
+| D10 | `MerchantTodayPage` | `isIncomplete` only false for `scanProgress.isComplete` (full-mode only). Fixed: also clears when `isRecentComplete` is true. |
+| D11 | `MerchantReportsPage` | "Last month" computed as `monthStartUtc(now - 86400 * 32)` → gave August on Oct 1. Fixed: new `previousMonthStart(ts)` helper in `utc-periods.ts`. |
+| D12 | `MerchantReportsPage` `ScanBanner` | "Load full history" button only appeared after recent scan finished, was hidden during active scan. Fixed: button always visible in banner footer. |
+| D13 | `MerchantReportsPage` `DetailTable` | `dateFilter` toggle existed in UI but never applied to rows. Fixed: `filtered` useMemo now sorts by the selected date column. |
+| D15 | `MerchantReportsPage` | Export completeness used `scanProgress.isComplete` (only true for full scans). Fixed: uses combined `coverageComplete = isComplete || isRecentComplete`. |
+| D1/D10 | `use-event-history` | `isRecentComplete` was not propagated in `scanProgress`. Fixed: `scanProgress.recentComplete` field added; `isRecentComplete` exposed on hook return. |
+| D2 | `use-event-history` | Fixed 2,000-block chunk size. Fixed: adaptive chunking starts at 10,000, halves on range/timeout errors (min 2,000). |
+| D3 | `use-event-history` | `rescan()` always cleared all cache and rescanned from scratch. Fixed: on remount, tail-refresh resumes from `tailCursor + 1` if cache is warm. |
+| D4 | `use-event-history` | Two serial `getLogs` calls per chunk. Fixed: both `RequestCreated` and `PaymentRecorded` are issued in parallel (`Promise.allSettled`). |
+| D5 | `use-event-history` | Block timestamps re-fetched for blocks seen in earlier chunks. Fixed: `tsCache` (Map) shared across the scan lifetime. |
+| D6 | `use-merchant-requests` | No reference block — consecutive page reads could see inconsistent state. Fixed: `refBlock` fetched once then passed as `blockNumber` to all page and status reads. |
+| D7 | `use-merchant-requests` | `staleTime: 15_000`, `refetchInterval: 30_000`. Fixed: `staleTime: 0`/`5_000`, `refetchInterval: 15_000`. |
+| D8 | `use-merchant-requests` | `req.merchant` not validated before inserting into `requestMap`. Fixed: skips zero-address and wrong-merchant responses. |
+| D16 | `MyReceipts` | Shared `abortRef` had a race on wallet switch. Fixed: generation counter; each scan captures its own gen and checks before every state write. |
+| D17 | `MyReceipts` | "Refresh" always did a full rebuild. Fixed: three separate actions — **Retry** (resume from pause cursor), **Update** (tail scan from cached head), **Rebuild** (full rescan, with confirmation prompt). |
+| D18 | `MyReceipts` | No per-row "View receipt" link. Fixed: each row now shows a `/receipt/:id` navigation button alongside the TX explorer link. |
+
+### New helpers added
+
+| File | Addition |
+|------|----------|
+| `src/lib/utc-periods.ts` | `previousMonthStart(ts)` — correct previous-month calculation for all months. |
+| `src/lib/use-event-history.ts` | `pLimit()` — bounded concurrency for block timestamp fetches (max 4 in-flight). |
+| `src/lib/use-event-history.ts` | `tailCursor` field in persisted cache — enables incremental tail-refresh on remount. |
+| `src/lib/use-event-history.ts` | `recentComplete` field in `ScanProgress`; `isRecentComplete` on hook return. |
+| `src/lib/use-merchant-requests.ts` | `isPartial` flag on return (true when some ID pages or status reads failed). |
+
+### Stage 2 checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| S2-1 | "Collected today" uses `requestMap` (contract-first) not event scan | ✅ | `todayPaymentsFromMap` |
+| S2-2 | `isIncomplete` clears when `isRecentComplete` is true | ✅ | `coverageComplete` flag |
+| S2-3 | `previousMonthStart` helper added; "Last month" in Reports uses it | ✅ | October → September correct |
+| S2-4 | "Load full history" always visible in ScanBanner, even during active scan | ✅ | always shown as footer action |
+| S2-5 | DetailTable sorts by selected date column (sort, not just label) | ✅ | `dateFilter` applied in `filtered` useMemo |
+| S2-6 | Export completeness uses `coverageComplete` (recent + full) | ✅ | |
+| S2-7 | Adaptive chunk: starts 10k, halves on range error, min 2k | ✅ | `CHUNK_SIZE_START`, `CHUNK_SIZE_MIN` |
+| S2-8 | Parallel `getLogs` for RequestCreated + PaymentRecorded | ✅ | `Promise.allSettled` |
+| S2-9 | Block timestamp cache shared across chunks | ✅ | `tsCache` Map in scan state |
+| S2-10 | Tail-refresh on remount (resume from `tailCursor`) | ✅ | `isTail` path in `runScan` |
+| S2-11 | Reference block pinned for all getMerchantRequests + getRequest reads | ✅ | async-only `setRefBlock` |
+| S2-12 | `req.merchant` validated before inserting into `requestMap` | ✅ | `req.merchant.toLowerCase() !== merchant.toLowerCase()` guard |
+| S2-13 | `staleTime`/`refetchInterval` tuned to 0/5k/15s | ✅ | |
+| S2-14 | Generation counter in MyReceipts prevents stale wallet writes | ✅ | `genRef` counter |
+| S2-15 | MyReceipts: Retry / Update / Rebuild semantics | ✅ | three distinct handlers |
+| S2-16 | MyReceipts: "View receipt" link per row | ✅ | `/receipt/:id` navigation button |
+| S2-17 | Lint: 0 errors, 0 warnings | ✅ | oxlint |
+| S2-18 | TypeScript: 0 errors | ✅ | tsc --noEmit |
+| S2-T1 | Live: "Collected today" updates within 15s of a payment (no refresh) | ⬜ | requires live testnet payment |
+| S2-T2 | Live: "Last month" shows correct month name (not August) | ⬜ | visual check |
+| S2-T3 | Live: "Load full history" button accessible while scan is in progress | ⬜ | visual check |
+| S2-T4 | Live: DetailTable sort changes when toggling Sort-by button | ⬜ | visual check |
+| S2-T5 | Live: MyReceipts Retry resumes from pause point, not from start | ⬜ | needs forced error |
+| S2-T6 | Live: MyReceipts Update scans only new blocks, completes fast | ⬜ | visual timing check |
+| S2-T7 | Live: switching wallet in MyReceipts cancels old scan | ⬜ | requires two wallets |
+| S2-T8 | Live: adaptive chunk logged smaller on a rate-limited provider | ⬜ | requires rate-limited endpoint |
+
+### Known limitations (Stage 2)
+
+- Reference block in `useMerchantAllRequests` is fetched async — first render uses `undefined` (wagmi "latest"), subsequent renders use the pinned block. A single request created between the first and second render may appear in the list one cycle late. This is correct behaviour (not a bug).
+- `tailCursor` is initialised to `headBlock` at scan start. If the user session is very long (days), the tail scan on next remount may cover a large range. This is bounded by the lookback window (500k blocks ≈ 2.9 days at 2 blocks/sec).
+- The `pLimit` concurrency helper is intentionally minimal — not a full production scheduler. It covers the typical case of 3–15 unique blocks per chunk.
+- Live tests S2-T1 through S2-T8 require testnet USDC and controlled conditions. None have been run in this session.

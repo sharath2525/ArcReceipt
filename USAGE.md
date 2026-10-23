@@ -687,5 +687,14 @@ A: Cart drafts are in sessionStorage and do not survive browser restarts. This i
 **Q: git push says "Everything up to date" but I made changes.**
 A: `git add -A && git commit -m "message" && git push origin newthing`
 
+**Q: "Collected today" shows zero even though I just received a payment.**
+A: The "Collected today" card is now driven by the live request map (contract reads), not the event scan. It refreshes every 15 seconds. If it shows zero right after a payment, wait up to 15s or navigate away and back. If it still shows zero, the requestMap may not have loaded yet — the "Awaiting payment" card counts can tell you if the requests are visible.
+
+**Q: "Last month" shows the wrong month.**
+A: This was a bug fixed in Stage 2. The calculation now always gives the correct prior calendar month regardless of the day of the month.
+
+**Q: My Receipts shows Retry, Update, and Rebuild — what is the difference?**
+A: **Update** scans only new blocks from where the last scan stopped — fastest option for checking new payments. **Retry** resumes from the last paused position after a network error — does not restart from scratch. **Rebuild** clears the entire cache and rescans from the contract deployment block — use only if you suspect the cache is corrupted.
+
 **Q: git merge fails with "local changes would be overwritten".**
 A: `git add -A && git commit -m "fix: commit before merge"` then retry.
