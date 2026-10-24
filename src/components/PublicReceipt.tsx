@@ -14,10 +14,10 @@
  *
  * All other behaviour preserved from Day 2.
  */
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useReadContract, usePublicClient } from 'wagmi'
 import { parseAbiItem } from 'viem'
-import { CheckCircle, XCircle, Clock, ExternalLink, Printer, AlertCircle, Loader2 } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, ExternalLink, Printer, AlertCircle, Loader2, Copy } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
@@ -43,6 +43,17 @@ interface PublicReceiptProps {
   payTxHash?: `0x${string}`
 }
 
+function useCopy(text: string | undefined): { copied: boolean; copy: () => void } {
+  const [copied, setCopied] = useState(false)
+  const copy = useCallback(() => {
+    if (!text) return
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2000)
+    })
+  }, [text])
+  return { copied, copy }
+}
+
 export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceiptProps) {
   const { data: rawReq, isLoading, error, refetch } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI,
@@ -61,6 +72,11 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
 
   // Resolved TX hash: prefer hint (same-session), fall back to recovered
   const payTxHash = hintTxHash ?? recoveredTxHash
+
+  const receiptLink = typeof window !== 'undefined'
+    ? `${window.location.origin}/receipt/${requestId.toString()}` : ''
+  const { copied: copiedLink, copy: copyLink } = useCopy(receiptLink)
+  const { copied: copiedTx, copy: copyTx } = useCopy(payTxHash)
 
   const isPaidReq = !!(req && req.status === 1)
 
@@ -296,13 +312,31 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
         </div>
       </div>
 
-      {/* Print button */}
-      <button
-        onClick={() => window.print()}
-        className="w-full py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-      >
-        <Printer size={15} /> Print receipt
-      </button>
+      {/* Copy / share controls */}
+      <div className="flex gap-2">
+        <button
+          onClick={copyLink}
+          className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
+        >
+          {copiedLink ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
+          {copiedLink ? 'Copied!' : 'Copy link'}
+        </button>
+        {payTxHash && (
+          <button
+            onClick={copyTx}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
+          >
+            {copiedTx ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
+            {copiedTx ? 'Copied!' : 'Copy TX'}
+          </button>
+        )}
+        <button
+          onClick={() => window.print()}
+          className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 print:hidden"
+        >
+          <Printer size={14} /> Print
+        </button>
+      </div>
     </div>
   )
 }

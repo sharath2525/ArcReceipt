@@ -698,3 +698,22 @@ A: **Update** scans only new blocks from where the last scan stopped — fastest
 
 **Q: git merge fails with "local changes would be overwritten".**
 A: `git add -A && git commit -m "fix: commit before merge"` then retry.
+
+**Q: My menu items disappeared after closing and reopening the browser.**
+A: This was fixed in Stage 3. Menu items are now stored in `localStorage` (survives browser restarts), not `sessionStorage`. If you set up the menu before Stage 3 was deployed, you will need to re-enter your items once — they will persist from that point on. Cart drafts remain session-only (intentional).
+
+**Q: How do I print a receipt?**
+A: Open the receipt at `/receipt/:id` and click the Print button. The page hides navigation chrome automatically during printing. The payment status, amount, payer, merchant, and TX explorer link are all printed. Copy Link and Copy TX buttons are also available to share the receipt or the onchain evidence.
+
+**Q: How do I access the merchant workspace?**
+A: Navigate directly to `/merchant` in your browser. You must connect the configured merchant wallet — the workspace is gated by wallet address. Connecting any wallet on a customer payment or receipt page does not redirect you to the merchant workspace.
+
+---
+
+## 18. Stage history
+
+| Stage | When | Summary |
+|-------|------|---------|
+| Stage 1 | 2026-10-23 | Payment evidence validation, unresolved TX phase, cancel persistence, row refresh timing, merchant scope guard on order detail |
+| Stage 2 | 2026-10-23 | Adaptive chunk sizing, parallel getLogs, tail-refresh, contract-first Today totals, correct last-month calculation, functional sort-by toggle, generation-safe MyReceipts, Retry/Update/Rebuild |
+| Stage 3 | 2026-10-23 | Menu localStorage, print CSS, receipt Copy controls, how-it-works panel on Home, deployment hygiene, DEPLOYMENT-GUIDE.md, merchant home links removed |

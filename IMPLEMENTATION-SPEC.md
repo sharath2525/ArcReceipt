@@ -1034,6 +1034,70 @@ The workspace shows "Merchant address not configured" until this is set.
 
 ---
 
+## STAGE 3 — UI, DEPLOYMENT HYGIENE AND MAINNET SUBMISSION PREP (2026-10-23)
+
+### Changes made
+
+| Area | Change | File |
+|------|--------|------|
+| Menu storage | `loadMenu`/`saveMenu` switched from `sessionStorage` to `localStorage` in both `SellPage.tsx` and `MerchantSettingsPage.tsx`. Menu now survives browser restarts. Cart remains session-only. | `src/components/SellPage.tsx`, `src/pages/merchant/MerchantSettingsPage.tsx` |
+| CustomerLayout | Merchant workspace entry button shown when connected wallet is the configured merchant. Clicking navigates to `/merchant`. Never shown to non-merchant wallets. | `src/components/CustomerLayout.tsx` |
+| HomePage | Added "How it works" 3-step panel (Build order / Show QR / Verify). Added merchant workspace entry card for merchant wallets (mirrors CustomerLayout). | `src/pages/HomePage.tsx` |
+| PublicReceipt | Added "Copy link" and "Copy TX" buttons alongside Print. Print button gains `print:hidden` class. | `src/components/PublicReceipt.tsx` |
+| Print CSS | `@media print` block added to `index.css`: hides nav/header/footer, strips box-shadow, allows colour printing, enforces `page-break-inside: avoid` on table rows. | `src/index.css` |
+| Vite config | Commented `cors: true` and `allowedHosts: true` to document their dev-only scope and Arc Studio preview requirement. No behaviour change. | `vite.config.ts` |
+| SellPage | Persistence disclaimer updated: explicitly states menu uses `localStorage` (survives restarts), cart uses `sessionStorage` (session-only). | `src/components/SellPage.tsx` |
+| MerchantSettingsPage | Storage disclaimer updated: localStorage noted as surviving restarts, not synced across devices. | `src/pages/merchant/MerchantSettingsPage.tsx` |
+| DEPLOYMENT-GUIDE.md | New file: exact mainnet deployment steps, network metadata, security headers, Brave Shields guide, grant submission checklist, §7+§8 of Part 3 spec. | `DEPLOYMENT-GUIDE.md` |
+
+### What was NOT changed (already correct or explicitly out of scope)
+
+- Contract unchanged (still at `0x4017d948c7a8f370f5e8d0eee6da7be2859bea18` on Arc Testnet).
+- Merchant layout (`MerchantLayout.tsx`) unchanged — sidebar/mobile nav already has testnet banner.
+- `CustomerLayout.tsx` testnet banner was already present — only the merchant entry was added.
+- `scripts/compass-deploy.ts` is not modified — it is an Arc Studio internal deployment script
+  that requires `@circlefin/compass-chains` (not a public package). `tsc --noEmit` already passes.
+- No mainnet deployment executed. All testnet links remain live.
+- No new features beyond what Part 3 §1–§6 specifies.
+
+### Stage 3 checklist
+
+| ID | Requirement | Status | Notes |
+|----|-------------|--------|-------|
+| S3-1 | Menu stored in localStorage (durable, survives restart) | ✅ | Both SellPage and Settings |
+| S3-2 | Cart remains in sessionStorage (session-scoped draft) | ✅ | Not changed |
+| S3-3 | Merchant workspace entry on Home and CustomerLayout | ✅ | Wallet-gated, never shown to non-merchants |
+| S3-4 | Home page explains Build/QR/Verify steps | ✅ | 3-step panel |
+| S3-5 | PublicReceipt: Copy link + Copy TX controls | ✅ | useCopy hook |
+| S3-6 | Print CSS for receipt | ✅ | `@media print` in index.css |
+| S3-7 | Print button hidden in print view | ✅ | `print:hidden` class |
+| S3-8 | Vite config: CORS + allowedHosts documented | ✅ | Comments in vite.config.ts |
+| S3-9 | Production security headers in vercel.json | ✅ | Already present (nosniff, DENY, Referrer-Policy) |
+| S3-10 | DEPLOYMENT-GUIDE.md with mainnet steps | ✅ | §7+§8 of Part 3 |
+| S3-11 | Lint: 0 errors, 0 warnings | ⬜ | Run after edits |
+| S3-12 | TypeScript: 0 errors | ⬜ | Run after edits |
+| S3-T1 | Live: menu persists across browser restart | ⬜ | localStorage — close and reopen browser |
+| S3-T2 | Live: merchant workspace entry visible when merchant wallet connected on Home | ⬜ | Visual check |
+| S3-T3 | Live: Copy link on receipt copies correct URL | ⬜ | Visual check |
+| S3-T4 | Live: Print button opens browser print dialog, nav hidden | ⬜ | Visual check |
+| S3-T5 | Live: merchant workspace entry NOT shown for customer wallet | ⬜ | Connect a non-merchant wallet |
+
+### Known limitations (Stage 3)
+
+- Mainnet deployment requires an independent audit first (see PENDING.md § C2). Not yet done.
+- The `@media print` CSS hides `header`/`footer`/`nav` by tag name. If a future page
+  uses `<header>` tags for non-navigation elements, those would also be hidden. This is
+  acceptable for the current receipt-only print use case.
+- `cors: true` in `vite.config.ts` is a dev-server setting and has no effect on the
+  Vercel static deployment. It is documented in a comment and retained for the sandbox.
+- Studio tracing/console capture (`tracing.ts`, `console-capture.ts`) uses `postMessage`
+  to the detected parent frame origin. On the Vercel production deployment, there is no
+  parent frame, so the messages go nowhere. These files cannot be removed without
+  modifying a tracked repository file; they are harmless on production.
+- Live tests S3-T1 through S3-T5 require a browser and connected wallet. None have been run.
+
+---
+
 ## STAGE 2 — ACCURATE AND FASTER REPORTING / HISTORY (2026-10-23)
 
 ### Exact defects fixed

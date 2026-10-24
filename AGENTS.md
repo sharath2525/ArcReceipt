@@ -44,26 +44,27 @@ Merchant creates USDC payment requests onchain → customer scans QR → pays wi
 
 ---
 
-## Route Map (Part 1 — 2026-10-18)
+## Route Map (current — updated Stages 1/2/3)
 
 ### Customer routes (CustomerLayout — narrow mobile)
 | Path | Component | Notes |
 |------|-----------|-------|
+| `/` | HomePage | Lookup + how-it-works. No merchant links. |
 | `/pay/:requestId` | PublicCheckout | Customer payment flow |
-| `/receipt/:requestId` | PublicReceipt | Wallet-free receipt |
-| `/payments` | MyReceipts | Connected wallet's payment history |
-| `/verify` | VerifyPanel | Wallet-free receipt lookup by ID |
+| `/receipt/:requestId` | PublicReceipt | Wallet-free receipt + Copy/Print |
+| `/payments` | MyReceipts | Connected wallet history; Retry/Update/Rebuild |
+| `/verify` | VerifyPage | Wallet-free receipt lookup by ID |
 
-### Merchant routes (MerchantLayout — sidebar, access-gated)
+### Merchant routes (MerchantLayout — sidebar, wallet-gated)
 | Path | Component | Notes |
 |------|-----------|-------|
-| `/merchant` | SellPage | Cart-based order creation |
-| `/merchant/today` | stub | Part 3: UTC daily summary |
-| `/merchant/orders` | MerchantDashboard (orders mode) | Full paginated history |
-| `/merchant/orders/:requestId` | Order detail + QR | Chain-sourced |
-| `/merchant/reports` | stub | Part 3: daily/monthly reporting |
-| `/merchant/settings` | stub | Menu presets + config |
-| `/merchant/demo` | ABDemo | Developer tool, not in main nav |
+| `/merchant` | MerchantSellPage → SellPage | Cart POS; localStorage menu |
+| `/merchant/today` | MerchantTodayPage | UTC daily summary; contract-first totals |
+| `/merchant/orders` | MerchantOrdersPage | Paginated order history |
+| `/merchant/orders/:requestId` | MerchantOrderDetailPage | QR + status; merchant-scoped guard |
+| `/merchant/reports` | MerchantReportsPage | Daily/monthly; adaptive scan; CSV |
+| `/merchant/settings` | MerchantSettingsPage | Menu + business profile; localStorage |
+| `/merchant/demo` | MerchantDemoPage | Developer tool, not in main nav |
 
 ### Legacy redirects (backward compatibility)
 | Old URL | Redirects to |
@@ -79,15 +80,39 @@ Merchant creates USDC payment requests onchain → customer scans QR → pays wi
 
 ## Key Files
 
+**Routing and layouts**
 - `src/AppRouter.tsx` — route tree, two layout trees
 - `src/components/MerchantLayout.tsx` — sidebar nav, access gate wrapper
 - `src/components/MerchantGate.tsx` — access control component
-- `src/components/CustomerLayout.tsx` — narrow mobile shell
-- `src/lib/merchant.ts` — merchant address config and access state
+- `src/components/CustomerLayout.tsx` — narrow mobile shell; no merchant links
 - `src/pages/LegacyRedirect.tsx` — backward-compatible query-string redirect
-- `src/lib/contract.ts` — contract address, ABI, topics, link builders
+
+**Contract and wallet**
+- `src/lib/contract.ts` — contract address, ABI, topics, canonical link builders
+- `src/lib/merchant.ts` — merchant address config and access state
 - `src/lib/pending-tx.ts` — pending TX sessionStorage persistence
+- `src/lib/deployment.ts` — deployment block constant (67,462,931)
 - `src/config.ts` — wagmi config with 4-provider RPC fallback
+
+**Data / scanning (Stage 2)**
+- `src/lib/use-event-history.ts` — adaptive-chunk event scanner; tail-refresh; parallel getLogs
+- `src/lib/use-merchant-requests.ts` — paginated contract reads; pinned reference block
+- `src/lib/utc-periods.ts` — UTC period helpers incl. `previousMonthStart`
+
+**Pages**
+- `src/pages/HomePage.tsx` — public landing; lookup; how-it-works; no merchant links
+- `src/components/PublicCheckout.tsx` — payment flow; PaymentRecorded validation
+- `src/components/PublicReceipt.tsx` — receipt; TX recovery; Copy/Print
+- `src/components/MyReceipts.tsx` — payment history; generation-safe scan; Retry/Update/Rebuild
+- `src/pages/merchant/MerchantTodayPage.tsx` — contract-first daily totals
+- `src/pages/merchant/MerchantReportsPage.tsx` — historical reporting; CSV export
+- `src/pages/merchant/MerchantSettingsPage.tsx` — menu (localStorage) + business profile
+
+**Docs**
+- `USAGE.md` — complete operator guide (17 sections + stage history)
+- `PENDING.md` — open issues, live tests still required, invariants
+- `IMPLEMENTATION-SPEC.md` — full spec Parts 1/2/3 + stage checklists
+- `DEPLOYMENT-GUIDE.md` — mainnet deploy steps, security headers, grant submission checklist
 
 ---
 

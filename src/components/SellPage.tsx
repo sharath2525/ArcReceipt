@@ -85,6 +85,9 @@ function menuKey(account: string): string {
   return `arc-receipt:menu:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${account.toLowerCase()}`
 }
 
+// Menu is stored in localStorage (survives browser restarts — durable operator config).
+// Cart remains in sessionStorage (session-scoped draft, intentionally transient).
+
 // Persists the confirmed order so it survives a page refresh.
 // Scoped by chain + contract + merchant.
 interface ConfirmedOrder {
@@ -200,7 +203,8 @@ function saveCart(account: string, cart: CartItem[]): void {
 }
 function loadMenu(account: string): MenuItem[] {
   try {
-    const raw = sessionStorage.getItem(menuKey(account))
+    // localStorage for durable menu — survives browser restarts.
+    const raw = localStorage.getItem(menuKey(account))
     if (!raw) return DEFAULT_MENU
     const parsed = JSON.parse(raw) as unknown[]
     if (!Array.isArray(parsed)) return DEFAULT_MENU
@@ -210,7 +214,7 @@ function loadMenu(account: string): MenuItem[] {
   } catch { return DEFAULT_MENU }
 }
 function saveMenu(account: string, menu: MenuItem[]): void {
-  try { sessionStorage.setItem(menuKey(account), JSON.stringify(menu)) } catch { /* ignore */ }
+  try { localStorage.setItem(menuKey(account), JSON.stringify(menu)) } catch { /* ignore */ }
 }
 
 // ─── MenuCard ─────────────────────────────────────────────────────────────────
@@ -996,11 +1000,15 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
         </div>
       </div>
 
-      {/* Attribution note */}
+      {/* Persistence note */}
       {cart.length === 0 && (
-        <div className="text-center py-2">
+        <div className="text-center py-2 space-y-0.5">
           <p className="text-xs text-slate-300">
             Sample prices are for demonstration only — not representative of any real business.
+          </p>
+          <p className="text-xs text-slate-300">
+            Menu is saved locally in this browser (survives restarts). Cart is session-only.
+            Neither is synced across devices.
           </p>
         </div>
       )}

@@ -35,7 +35,11 @@ export default defineConfig({
     ],
   },
   server: {
+    // allowedHosts: true is required by the Arc Studio preview proxy (must not be changed).
     allowedHosts: true,
+    // cors: true applies to the Vite dev server only — the Vercel static deploy
+    // does not run a dev server. Production CORS and security headers are
+    // configured in vercel.json (see DEPLOYMENT-GUIDE.md).
     cors: true,
   },
 })

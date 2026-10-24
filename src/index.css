@@ -11,3 +11,24 @@ body {
   font-family: system-ui, sans-serif;
   min-height: 100dvh;
 }
+
+/* ── Print styles — receipt only ─────────────────────────────────────────── */
+@media print {
+  /* Hide navigation chrome */
+  header, footer, nav, .print\:hidden { display: none !important; }
+
+  /* Reset backgrounds so ink is not wasted */
+  body, .min-h-dvh { background: white !important; min-height: unset !important; }
+
+  /* Strip gradients / shadows from the receipt card */
+  .rounded-2xl, .rounded-xl { box-shadow: none !important; }
+
+  /* Ensure receipt content fills the page */
+  main { max-width: 100% !important; padding: 0 !important; }
+
+  /* Keep table rows together where possible */
+  tr { page-break-inside: avoid; }
+
+  /* Ensure emerald backgrounds print with colour (for status badge) */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

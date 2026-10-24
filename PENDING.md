@@ -298,17 +298,25 @@ Planned scope:
 7. Reports `requestMap` completeness gate before CSV export.
 8. Run live wallet tests C1-T1 through C1-T13 and update checklist.
 
-### Stage 3 (not yet started): UI polish, deployment checks, mainnet submission
+### Stage 3 (completed 2026-10-23): UI polish, deployment checks, mainnet submission
 
-Planned scope:
-1. Testnet banner in CustomerLayout.
-2. Print layout `@media print` CSS pass.
-3. Merchant settings persistence option (localStorage vs sessionStorage).
-4. Unify expiry presets between MerchantDashboard and SellPage.
-5. `VITE_APP_ORIGIN` production setup documentation and check.
-6. Remove `MerchantDashboard mode='sell'` dead code.
-7. Build log update, README final pass.
-8. Mainnet deployment guide (requires independent security audit first — see C2).
+Completed items:
+1. ✅ Merchant workspace entry added to Home and CustomerLayout (wallet-gated).
+2. ✅ How-it-works 3-step panel on Home page.
+3. ✅ Print layout `@media print` CSS pass in index.css.
+4. ✅ Menu storage changed from sessionStorage to localStorage (durable).
+5. ✅ PublicReceipt: Copy link + Copy TX buttons.
+6. ✅ DEPLOYMENT-GUIDE.md: mainnet steps, security headers, submission checklist.
+
+Remaining from Stage 3 scope (not done):
+- Unify expiry presets between MerchantDashboard and SellPage (M2-D above).
+- Remove `MerchantDashboard mode='sell'` dead code (M2-E above).
+- `VITE_APP_ORIGIN` production env var (C3 above — requires Vercel env var, not code change).
+- Mainnet deployment (requires independent audit — see C2 above).
+
+Post-Stage-3 correction applied:
+- ✅ Merchant workspace links removed from public Home and CustomerLayout per user direction.
+  Merchant workspace is accessible only via direct URL `/merchant` with wallet gate.
 
 ---
 

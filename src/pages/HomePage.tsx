@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, FileText, ArrowRight, ShieldCheck,
   AlertCircle, ScanLine, ChevronRight,
+  ShoppingCart, QrCode, CheckCircle2,
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { ARC_TESTNET_ID } from '@/lib/contract'
@@ -83,6 +84,25 @@ export default function HomePage() {
         </span>
       </div>
 
+      {/* ── How it works ──────────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 space-y-2.5">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">How it works</p>
+        <div className="space-y-2">
+          {[
+            { icon: <ShoppingCart size={13} className="text-emerald-600" />, step: '1', text: 'Merchant builds the order in the Sell screen' },
+            { icon: <QrCode size={13} className="text-emerald-600" />,        step: '2', text: 'Each order gets a unique QR — customer scans and pays in USDC' },
+            { icon: <CheckCircle2 size={13} className="text-emerald-600" />,  step: '3', text: 'Payment and receipt are verified onchain — no trust required' },
+          ].map(({ icon, step, text }) => (
+            <div key={step} className="flex items-center gap-3">
+              <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center shrink-0">
+                {icon}
+              </div>
+              <p className="text-xs text-slate-600">{text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Connected wallet card ─────────────────────────────────────────── */}
       {isConnected && address ? (
         <button
@@ -90,7 +110,7 @@ export default function HomePage() {
           className="w-full flex items-center justify-between gap-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-2xl px-4 py-4 transition-all shadow-md shadow-emerald-200"
         >
           <div className="text-left">
-            <p className="text-xs text-emerald-200 font-medium">Connected</p>
+            <p className="text-xs text-emerald-200 font-medium">Connected wallet</p>
             <p className="text-sm font-semibold font-mono">
               {address.slice(0, 8)}…{address.slice(-6)}
             </p>

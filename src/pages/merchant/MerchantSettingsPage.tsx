@@ -104,7 +104,8 @@ function sanitizeMenuItem(item: unknown): MenuItem | null {
 
 function loadMenu(account: string): MenuItem[] {
   try {
-    const raw = sessionStorage.getItem(menuKey(account))
+    // localStorage for durable menu — survives browser restarts.
+    const raw = localStorage.getItem(menuKey(account))
     if (!raw) return DEFAULT_MENU
     const parsed = JSON.parse(raw) as unknown[]
     if (!Array.isArray(parsed)) return DEFAULT_MENU
@@ -114,7 +115,7 @@ function loadMenu(account: string): MenuItem[] {
 }
 
 function saveMenu(account: string, menu: MenuItem[]): void {
-  try { sessionStorage.setItem(menuKey(account), JSON.stringify(menu)) } catch { /* ignore */ }
+  try { localStorage.setItem(menuKey(account), JSON.stringify(menu)) } catch { /* ignore */ }
 }
 
 // ── MenuRow — single editable row ─────────────────────────────────────────────
@@ -550,8 +551,8 @@ export default function MerchantSettingsPage() {
             Reset to sample menu
           </button>
           <p className="text-xs text-slate-400 mt-1">
-            Menu items are stored locally in this browser, scoped to this merchant wallet and contract.
-            They are not synced across devices.
+            Menu items are stored in this browser's local storage, scoped to this merchant wallet and contract.
+            They survive browser restarts but are not synced across devices or browsers.
           </p>
         </div>
       </div>
