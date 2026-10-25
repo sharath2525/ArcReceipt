@@ -46,9 +46,24 @@ import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
 import { formatAddr, formatTs } from '@/lib/ui'
 
 const DEPLOYMENT_BLOCK = ARC_TESTNET_DEPLOYMENT.block
-const CHUNK_SIZE_START = 10_000n
-const CHUNK_SIZE_MIN   =  2_000n
-const CACHE_VERSION = 3   // bumped for D16 (generation-aware cursor)
+
+/**
+ * Arc Testnet hard limit: 10,000 blocks per eth_getLogs call (error -32012).
+ * Use 9,999 to stay safely under. Official docs: docs.arc.io/arc/references/rpc-endpoints
+ */
+const CHUNK_SIZE_START = 9_999n
+const CHUNK_SIZE_MIN   = 1_000n
+
+/**
+ * Default lookback for the first customer scan: 500,000 blocks ≈ ~2.9 days at
+ * ~2 blocks/s. Covers typical use. Rebuild rescans from DEPLOYMENT_BLOCK.
+ */
+const DEFAULT_LOOKBACK = 500_000n
+
+/** Delay between chunks to avoid hammering the RPC. */
+const INTER_CHUNK_DELAY_MS = 300
+
+const CACHE_VERSION = 4   // bumped: localStorage + lookback-based start
 
 // A1: Typed ABI event
 const PAYMENT_RECORDED_ABI = parseAbiItem(
@@ -72,9 +87,12 @@ function storageKey(chainId: number, contract: string, payer: string): string {
 }
 
 function evictOldCache(chainId: number, contract: string, payer: string): void {
-  for (const v of [1, 2]) {
+  for (const v of [1, 2, 3]) {
     try {
+      // v1-v3 used sessionStorage
       sessionStorage.removeItem(`arc-receipt:my-receipts-v${v}:${chainId}:${contract.toLowerCase()}:${payer.toLowerCase()}`)
+      // v4+ uses localStorage; evict old localStorage versions too when bumping again
+      localStorage.removeItem(`arc-receipt:my-receipts-v${v}:${chainId}:${contract.toLowerCase()}:${payer.toLowerCase()}`)
     } catch { /* ignore */ }
   }
 }
@@ -107,7 +125,7 @@ interface CacheEntry {
 function loadCache(chainId: number, contract: string, payer: string): CacheEntry | null {
   evictOldCache(chainId, contract, payer)
   try {
-    const raw = sessionStorage.getItem(storageKey(chainId, contract, payer))
+    const raw = localStorage.getItem(storageKey(chainId, contract, payer))
     if (!raw) return null
     const parsed = JSON.parse(raw) as {
       version?: number
@@ -140,7 +158,7 @@ function saveCache(
   records: PaymentRecord[], scannedFrom: bigint, scannedTo: bigint
 ): void {
   try {
-    sessionStorage.setItem(storageKey(chainId, contract, payer), JSON.stringify({
+    localStorage.setItem(storageKey(chainId, contract, payer), JSON.stringify({
       version: CACHE_VERSION,
       scannedFrom: scannedFrom.toString(),
       scannedTo: scannedTo.toString(),
@@ -282,7 +300,17 @@ export function MyReceipts() {
             success = true
           } catch (e) {
             const msg = (e as Error)?.message ?? ''
-            const isRangeErr = /range|limit|timeout|too many|block range/i.test(msg)
+            // -32012: block range too large → shrink chunk size
+            const isRangeErr = /range|limit|too many|block range|-32012/i.test(msg)
+            // -32014: load-balanced backend hasn't imported the head block yet → brief retry, don't shrink
+            const isHeadSync = /-32014/.test(msg)
+
+            if (isHeadSync) {
+              // Back off 500ms and retry without shrinking chunk
+              await new Promise(res => setTimeout(res, 500))
+              continue
+            }
+
             if (isRangeErr && scanStateRef.current.chunkSize > CHUNK_SIZE_MIN) {
               scanStateRef.current.chunkSize = scanStateRef.current.chunkSize / 2n
             }
@@ -321,6 +349,11 @@ export function MyReceipts() {
           scanStateRef.current.scannedTo)
 
         cursor = chunkTo + 1n
+
+        // Rate-limit: pause between chunks to avoid -32012 bursts
+        if (cursor <= scanTo && isCur()) {
+          await new Promise(res => setTimeout(res, INTER_CHUNK_DELAY_MS))
+        }
       }
 
       if (isCur()) {
@@ -359,8 +392,8 @@ export function MyReceipts() {
 
     // Load cache and start tail scan from the cached head
     const cached = loadCache(ARC_TESTNET_ID, CONTRACT_ADDRESS, address)
-    if (cached && cached.records.length > 0) {
-      // Show cached records immediately
+    if (cached) {
+      // Show cached records immediately, then scan forward from where we left off
       setRecords(cached.records)
       setScannedFrom(cached.scannedFrom)
       setScannedTo(cached.scannedTo)
@@ -373,18 +406,24 @@ export function MyReceipts() {
         myGen
       )
     } else {
-      // No cache — fresh scan from deployment block
+      // No cache — fresh scan using a lookback window (~2.9 days).
+      // Rebuild uses DEPLOYMENT_BLOCK for a full rescan.
       setRecords([])
-      setScannedFrom(DEPLOYMENT_BLOCK)
       setScannedTo(null)
       setChainHead(null)
       setPhase('scanning')
       setError(null)
-      void doScan(
-        address, DEPLOYMENT_BLOCK, undefined,
-        [], DEPLOYMENT_BLOCK, DEPLOYMENT_BLOCK - 1n,
-        myGen
-      )
+      void (async () => {
+        if (!publicClient) { setPhase('error'); setError('No RPC client'); return }
+        let head: bigint
+        try { head = await publicClient.getBlockNumber() }
+        catch { setPhase('error'); setError('Failed to fetch chain head'); return }
+        if (genRef.current !== myGen) return
+        const lookback = head > DEFAULT_LOOKBACK ? head - DEFAULT_LOOKBACK : 0n
+        const startBlock = lookback > DEPLOYMENT_BLOCK ? lookback : DEPLOYMENT_BLOCK
+        setScannedFrom(startBlock)
+        void doScan(address, startBlock, undefined, [], startBlock, startBlock - 1n, myGen)
+      })()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, chainId])
@@ -433,7 +472,7 @@ export function MyReceipts() {
   /** Rebuild: clear cache, rescan from deployment block. Shows confirmation. */
   const handleRebuild = useCallback(() => {
     if (!address || phase === 'scanning') return
-    try { sessionStorage.removeItem(storageKey(ARC_TESTNET_ID, CONTRACT_ADDRESS, address)) } catch { /* ignore */ }
+    try { localStorage.removeItem(storageKey(ARC_TESTNET_ID, CONTRACT_ADDRESS, address)) } catch { /* ignore */ }
     genRef.current += 1
     const myGen = genRef.current
     setRecords([])
@@ -523,8 +562,8 @@ export function MyReceipts() {
             </p>
           )}
           <p className="text-slate-400">
-            Starting from deployment block {DEPLOYMENT_BLOCK.toString()}.
-            {!isComplete && ' History may be incomplete until scan finishes.'}
+            Scanning recent history (~2.9 days).
+            {!isComplete && ' Use Rebuild to scan all history back to the contract deployment.'}
           </p>
         </div>
       )}

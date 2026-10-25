@@ -108,11 +108,12 @@ const DEPLOYMENT_BLOCK: bigint = ARC_TESTNET_DEPLOYMENT.block
 const DEFAULT_LOOKBACK = 500_000n
 
 /**
- * S2-A: Starting chunk size. Measured working on Arc primary, Blockdaemon,
- * QuickNode. Will halve on range-limit/timeout errors.
+ * S2-A: Starting chunk size.
+ * Arc Testnet hard limit is exactly 10,000 blocks (error -32012).
+ * Use 9,999 to stay safely under. Official source: docs.arc.io/arc/references/rpc-endpoints
  */
-const CHUNK_SIZE_START = 10_000n
-const CHUNK_SIZE_MIN   =  2_000n
+const CHUNK_SIZE_START = 9_999n
+const CHUNK_SIZE_MIN   = 1_000n
 
 /** Max retries per chunk on plain RPC errors (not range errors). */
 const MAX_RPC_RETRIES = 3
@@ -683,8 +684,14 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
               createdOk = true
             } else {
               const errMsg = (createdResult.reason as Error)?.message ?? ''
-              // Range-limit or timeout error — need to shrink, not retry
-              if (/range|limit|timeout|too many|block range/i.test(errMsg)) {
+              // -32014: load-balanced backend hasn't synced to the head block yet
+              // Retry with backoff; do NOT shrink chunk
+              if (/-32014/.test(errMsg)) {
+                await new Promise(res => setTimeout(res, 500))
+                continue
+              }
+              // -32012: block range too large → shrink immediately
+              if (/range|limit|too many|block range|-32012/i.test(errMsg)) {
                 throw new RangeError(errMsg)
               }
             }
@@ -694,7 +701,11 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
               paymentOk = true
             } else {
               const errMsg = (paymentResult.reason as Error)?.message ?? ''
-              if (/range|limit|timeout|too many|block range/i.test(errMsg)) {
+              if (/-32014/.test(errMsg)) {
+                await new Promise(res => setTimeout(res, 500))
+                continue
+              }
+              if (/range|limit|too many|block range|-32012/i.test(errMsg)) {
                 throw new RangeError(errMsg)
               }
             }
