@@ -333,12 +333,38 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
     onPaid?.(payHash)
   }, [payConfirmed, payHash, payReceipt, onPaid, refetch, address, requestId, req])
 
+  // ── Expiry notification ───────────────────────────────────────────────────
+  // Track the last-seen open state so we can detect the open→expired transition
+  // that happens during a 5-second refetch cycle while the user is on the page.
+  const wasOpenRef = useRef<boolean | null>(null)
+  useEffect(() => {
+    if (!req) return
+    const nowExpired = isExpired(req)
+    const nowOpen = req.status === 0 && !nowExpired
+
+    if (wasOpenRef.current === true && !nowOpen && req.status === 0) {
+      // Transition: was open → now expired (status still 0, only expiry changed).
+      // Fire exactly once per request.
+      toast.error('This payment request has expired. Ask the merchant for a new link.')
+      if (phase === 'approving' || phase === 'paying') {
+        // Customer is mid-flow — warn that any in-flight TX will revert
+        toast.warning(
+          'Your transaction may have been submitted but the request is now expired. ' +
+          'If it confirms, the contract will reject it. Check the explorer before trying again.'
+        )
+      }
+    }
+
+    wasOpenRef.current = nowOpen
+  }, [req, phase])
+
   // Reset when requestId changes — clear ALL per-request refs so route
   // A→B cannot carry A's success guard, stale hashes or restore state into B.
   useEffect(() => {
     didAdvance.current = false
     restoredRef.current = false
     reportedHash.current = null  // Stage 1: reset so new requestId starts clean
+    wasOpenRef.current = null     // reset expiry tracker for new request
     setPhase('preview')
     setApproveHash(undefined)
     setPayHash(undefined)
@@ -578,6 +604,11 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
           </p>
         </div>
         <RequestPreviewRows req={req} requestId={requestId} />
+        <p className="text-xs text-slate-500 pt-1 border-t border-slate-200">
+          {isCancelled
+            ? 'This request was cancelled by the merchant. No payment has been taken. Ask the merchant for a new link if needed.'
+            : 'This request expired before payment was made. No funds have been taken. Ask the merchant to create a new payment request.'}
+        </p>
       </div>
     )
   }
