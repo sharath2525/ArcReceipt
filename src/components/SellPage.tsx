@@ -81,6 +81,16 @@ function cartTotal(items: CartItem[]): bigint {
 function cartKey(account: string): string {
   return `arc-receipt:cart:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${account.toLowerCase()}`
 }
+
+/**
+ * Clear the cart for a given account.
+ * Exported so callers outside SellPage (e.g. MerchantOrderDetailPage "Next order")
+ * can reset the cart before navigating back to /merchant, ensuring a fresh
+ * empty cart is shown rather than the previous order's items.
+ */
+export function clearCartForAccount(account: string): void {
+  try { sessionStorage.removeItem(cartKey(account)) } catch { /* ignore */ }
+}
 function menuKey(account: string): string {
   return `arc-receipt:menu:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${account.toLowerCase()}`
 }

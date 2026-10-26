@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
-import { MERCHANT_ADDRESS } from '@/lib/merchant'
+import { MERCHANT_ADDRESSES } from '@/lib/merchant'
 import { ARC_TESTNET_CHAIN_ID } from '@/onchain-facts'
 import { CONTRACT_ADDRESS, ARC_TESTNET_ID } from '@/lib/contract'
 import { parseUsdc } from '@/onchain-money'
@@ -467,7 +467,17 @@ export default function MerchantSettingsPage() {
         <div className="space-y-1.5 text-xs text-slate-600">
           <InfoRow label="Chain" value={`Arc Testnet (${ARC_TESTNET_CHAIN_ID})`} />
           <InfoRow label="Contract" value={CONTRACT_ADDRESS} mono />
-          <InfoRow label="Merchant wallet" value={MERCHANT_ADDRESS ?? 'Not configured'} mono={!!MERCHANT_ADDRESS} />
+          {MERCHANT_ADDRESSES.length === 0 && (
+            <InfoRow label="Merchant wallet" value="Not configured" />
+          )}
+          {MERCHANT_ADDRESSES.map((addr, i) => (
+            <InfoRow
+              key={addr}
+              label={MERCHANT_ADDRESSES.length === 1 ? 'Merchant wallet' : `Merchant wallet ${i + 1}`}
+              value={addr}
+              mono
+            />
+          ))}
         </div>
       </div>
 

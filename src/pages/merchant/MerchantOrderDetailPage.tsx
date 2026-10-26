@@ -21,7 +21,8 @@ import {
   CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
   buildPaymentLink, buildReceiptLink, type OnchainRequest,
 } from '@/lib/contract'
-import { MERCHANT_ADDRESS } from '@/lib/merchant'
+import { matchesMerchant } from '@/lib/merchant'
+import { clearCartForAccount } from '@/components/SellPage'
 import { formatUsdc } from '@/onchain-money'
 import { formatAddr, formatTs, statusMeta, isExpired } from '@/lib/ui'
 
@@ -213,10 +214,13 @@ function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () 
   // req.merchant matches the configured MERCHANT_ADDRESS AND the connected
   // wallet is the merchant. If someone navigates to another merchant's order
   // URL, they see the order in read-only mode.
+  // Management controls are shown when the request's merchant is one of the
+  // configured addresses AND the connected wallet is that same address.
+  // Any other wallet sees the order in read-only mode.
   const isMerchantOrder =
-    MERCHANT_ADDRESS !== null &&
-    req.merchant.toLowerCase() === MERCHANT_ADDRESS.toLowerCase() &&
-    address?.toLowerCase() === MERCHANT_ADDRESS.toLowerCase()
+    matchesMerchant(req.merchant) &&
+    address !== undefined &&
+    req.merchant.toLowerCase() === address.toLowerCase()
 
   return (
     <div className="space-y-4">
@@ -282,7 +286,7 @@ function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () 
       </div>
 
       {/* Stage 1: not-your-order notice when req.merchant != configured merchant */}
-      {!isMerchantOrder && MERCHANT_ADDRESS !== null && (
+      {!isMerchantOrder && (
         <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-center gap-2 text-xs text-amber-700">
           <AlertCircle size={14} className="shrink-0" />
           This request belongs to a different merchant address. Management controls are not available.
@@ -352,7 +356,7 @@ function OrderDetailView({ requestId, onBack }: { requestId: bigint; onBack: () 
       {/* Next order — only shown for merchant's own orders */}
       {isMerchantOrder && (
         <button
-          onClick={() => void navigate('/merchant')}
+          onClick={() => { if (address) clearCartForAccount(address); void navigate('/merchant') }}
           className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
         >
           <RefreshCw size={14} /> Next order

@@ -9,7 +9,7 @@
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
 import { ShieldOff, Settings, Wallet } from 'lucide-react'
-import { getMerchantAccess, MERCHANT_ADDRESS } from '@/lib/merchant'
+import { getMerchantAccess, MERCHANT_ADDRESSES } from '@/lib/merchant'
 
 interface MerchantGateProps {
   children: React.ReactNode
@@ -59,10 +59,13 @@ export function MerchantGate({ children }: MerchantGateProps) {
           <div className="flex justify-center">
             <ConnectKitButton />
           </div>
-          {MERCHANT_ADDRESS && (
-            <p className="text-xs text-slate-400 font-mono">
-              Expected: {MERCHANT_ADDRESS.slice(0, 8)}…{MERCHANT_ADDRESS.slice(-6)}
-            </p>
+          {MERCHANT_ADDRESSES.length > 0 && (
+            <div className="text-xs text-slate-400 font-mono space-y-0.5">
+              <p className="text-slate-500 not-italic">Authorised {MERCHANT_ADDRESSES.length === 1 ? 'wallet' : 'wallets'}:</p>
+              {MERCHANT_ADDRESSES.map(addr => (
+                <p key={addr}>{addr.slice(0, 8)}…{addr.slice(-6)}</p>
+              ))}
+            </div>
           )}
         </div>
       </div>
