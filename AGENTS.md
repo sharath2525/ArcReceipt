@@ -26,21 +26,88 @@ Merchant creates USDC payment requests onchain → customer scans QR → pays wi
 
 ---
 
-## Contract Deployment
+## Contract
 
-- Chain: Arc Testnet (5042002)
-- Contract: `0x4017d948c7a8f370f5e8d0eee6da7be2859bea18`
-- Deploy TX: `0xa464d3b5594a471071744763ec765283a579ffae44c890fe7b2eef5c4e8f0f45`
-- Deployed: 2026-10-16T07:21:04.299Z
-- Deployment block: 67,462,931
+### Who created it and who owns it
+
+Arc Studio wrote the Solidity source (`contracts/ArcReceiptCheckout.sol`) and deployed it to Arc Testnet during the initial session. The deployer wallet paid the gas — after that it has zero special rights. The contract has **no owner, no admin, no upgradeability**. Nobody — not you, not Arc Studio, not Circle — can pause, modify, or upgrade it. It runs exactly as deployed, forever.
+
+### Deployed instance (Arc Testnet)
+
+| Field | Value |
+|-------|-------|
+| Contract address | `0x4017d948c7a8f370f5e8d0eee6da7be2859bea18` |
+| Chain | Arc Testnet (chain ID 5042002) |
+| Deploy TX | `0xa464d3b5594a471071744763ec765283a579ffae44c890fe7b2eef5c4e8f0f45` |
+| Deployed | 2026-10-16T07:21:04 UTC |
+| Deployment block | 67,462,931 |
+| Explorer | https://explorer.testnet.arc.io/address/0x4017d948c7a8f370f5e8d0eee6da7be2859bea18 |
+| USDC (hardcoded) | `0x3600000000000000000000000000000000000000` (6 decimals, Arc Testnet) |
+
+### What the contract does (plain language)
+
+- Any wallet can call `createRequest(amount, expiresAt)` to create a payment request. The caller becomes the merchant for that request.
+- Any other wallet can call `pay(requestId)` to pay it. The contract checks: request is open, not expired, payer is not the merchant. Then it calls `USDC.transferFrom(payer, merchant, amount)` — USDC moves directly from customer to merchant. The contract never holds funds.
+- The merchant can call `cancelRequest(id)` at any time while the request is still open.
+- `getRequest(id)` returns the full request struct (merchant, amount, expiresAt, status, payer, paidAt).
+- `getMerchantRequests(merchant, offset, limit)` returns paginated request IDs for a merchant.
+
+### Security properties
+
+| Property | Detail |
+|----------|--------|
+| No custody | USDC goes direct from customer to merchant. Contract balance is always zero. |
+| No owner | No `owner`, no `Ownable`, no admin role. Nobody can pause or change it. |
+| No upgradeability | Not a proxy. Code is fixed at deployment. |
+| Reentrancy guard | `pay()` uses OpenZeppelin `ReentrancyGuard` (`nonReentrant` modifier). |
+| Safe transfer | Uses OpenZeppelin `SafeERC20.safeTransferFrom` — reverts on failed transfer. |
+| Self-payment blocked | `pay()` reverts with `SelfPayment` if `msg.sender == req.merchant`. |
+| Expiry enforced | `pay()` reverts with `RequestExpired` if `block.timestamp >= req.expiresAt`. |
+| Max expiry window | Requests cannot be created with expiry more than 30 days in the future. |
+| Cancel auth | Only the original merchant (`msg.sender == req.merchant`) can cancel. |
+| Isolation | Completely separate from every other contract. Another project's contract cannot interact with it. |
+
+### How to deploy a new contract (if you ever need one)
+
+You would need a new deployment if you want to change the contract logic (e.g. add a new feature, change the USDC address for mainnet, fix a bug). Steps:
+
+1. Edit `contracts/ArcReceiptCheckout.sol` with the changes.
+2. Run `forge build` to compile.
+3. Run `forge test` — all tests must pass.
+4. Get an independent audit if the change handles real funds.
+5. Deploy: say "deploy the contract" in Arc Studio chat — it will deploy to Arc Testnet and give you the new address.
+6. Update `src/lib/contract.ts`: change `CONTRACT_ADDRESS` to the new address.
+7. Update `src/lib/deployment.ts`: change `DEPLOYMENT_BLOCK` to the new deploy block.
+8. Update `AGENTS.md` and `USAGE.md` with the new address and block.
+9. Rebuild and redeploy the frontend.
+
+**The existing testnet contract keeps working in parallel** — old payment links still resolve. Only new orders use the new contract.
+
+For mainnet: follow `DEPLOYMENT-GUIDE.md` — independent audit is required before any mainnet deployment.
 
 ---
 
+## Environment Variables
+
+Only two `VITE_` variables exist in the entire codebase. Both must be set in Vercel AND in the sandbox `.env` before building.
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `VITE_MERCHANT_ADDRESS` | Comma-separated list of wallet addresses that can access the merchant workspace. One address or many — all equal. | `0xAbc...123` or `0xAbc...123,0xDef...456` |
+| `VITE_APP_ORIGIN` | Base URL used when building shareable payment/receipt links and QR codes. | `https://arc-mr.vercel.app` |
+
+**Important:** `VITE_*` variables are baked into the JS bundle at Vite build time. Changing them in Vercel's dashboard does NOT update the live site until you also rebuild and redeploy. Workflow:
+1. Update the value in Vercel dashboard (Settings → Environment Variables).
+2. Update the same value in the sandbox `.env` file (Code panel).
+3. Rebuild and redeploy (say "redeploy" in the chat, or use Vercel dashboard → Deployments → Redeploy).
+
+No other environment variables are needed. Contract address, USDC address, chain ID, RPC endpoints, and deployment block are all hardcoded in source — not env vars — because changing them silently would break payments.
+
 ## Merchant Configuration
 
-- Authorized merchant wallet: `0xD995d0c31802A8D95C163f875fFefB40AB964eD6`
-- Configured via `.env`: `VITE_MERCHANT_ADDRESS=0xD995d0c31802A8D95C163f875fFefB40AB964eD6`
-- This is frontend-only access control. The contract allows any wallet to create its own requests; this gate restricts only the merchant workspace UI.
+- Authorized merchant wallets: configured via `VITE_MERCHANT_ADDRESS` (comma-separated list).
+- Frontend-only access control. The contract allows any wallet to create its own requests; this gate restricts only the merchant workspace UI.
+- To add a wallet: update `VITE_MERCHANT_ADDRESS` in Vercel + sandbox `.env`, then redeploy. No code change needed.
 
 ---
 

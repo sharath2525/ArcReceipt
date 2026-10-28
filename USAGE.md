@@ -31,69 +31,156 @@ path-based URLs only.
 
 ## 2. Contract
 
+### 2.1 Who created it and who owns it
+
+Arc Studio wrote the Solidity source and deployed it to Arc Testnet. The wallet that paid the deployment gas has **zero special rights** after that. The contract has no owner, no admin role, and no upgradeability. Nobody — not you, not Arc Studio, not Circle — can pause, modify, or upgrade it. It runs exactly as deployed, forever, on Arc Testnet.
+
+Every project deploys its own contract at its own address. Your contract is completely isolated from every other project's contract. An approval a customer gives to your contract (`0x4017...`) cannot be used by any other contract.
+
+### 2.2 Deployed instance
+
 | Field | Value |
-|---|---|
+|-------|-------|
 | Address | `0x4017d948c7a8f370f5e8d0eee6da7be2859bea18` |
 | Chain | Arc Testnet (chain ID 5042002) |
 | Deployment block | 67,462,931 |
 | Deploy TX | `0xa464d3b5594a471071744763ec765283a579ffae44c890fe7b2eef5c4e8f0f45` |
 | Deployed | 2026-10-16T07:21:04 UTC |
 | Explorer | https://explorer.testnet.arc.io/address/0x4017d948c7a8f370f5e8d0eee6da7be2859bea18 |
-| USDC address | `0x3600000000000000000000000000000000000000` (6 decimals) |
+| USDC (hardcoded) | `0x3600000000000000000000000000000000000000` (6 decimals, Arc Testnet) |
+| Source | `contracts/ArcReceiptCheckout.sol` |
 
-The contract is the sole source of truth for:
-- Payment amount, merchant address, expiry timestamp, request status
-- Payer address and paid timestamp (set on payment)
+### 2.3 How a payment works (step by step)
 
-Nothing in localStorage, sessionStorage, URLs, or query strings overrides contract data.
+```
+1. Merchant calls createRequest(amount, expiresAt)
+   → Contract stores the request, emits RequestCreated event
+   → Frontend generates a /pay/:id link and QR code
+
+2. Customer opens the link
+   → Frontend reads the request from the contract (amount, merchant, expiry)
+   → Customer sees the exact amount — not from the URL, from the contract
+
+3. Customer approves USDC
+   → Customer wallet signs: "allow contract 0x4017... to spend X USDC"
+   → This is a standard ERC-20 approval, scoped to this contract only
+
+4. Customer pays
+   → Customer wallet calls contract.pay(requestId)
+   → Contract checks: open? not expired? not self-payment?
+   → Contract calls USDC.transferFrom(customer, merchant, amount)
+   → USDC moves DIRECTLY from customer wallet to merchant wallet
+   → Contract emits PaymentRecorded event
+   → Contract balance remains zero — it never holds funds
+```
+
+### 2.4 Security properties
+
+| Property | What it means |
+|----------|--------------|
+| No custody | USDC goes direct customer → merchant. Contract holds nothing. Nothing to steal. |
+| No owner | Nobody can pause, freeze, or modify the contract after deployment. |
+| No upgradeability | The code is permanently fixed. What is deployed is what runs. |
+| Reentrancy guard | `pay()` is protected against reentrancy attacks (OpenZeppelin `ReentrancyGuard`). |
+| Safe transfer | Uses `SafeERC20.safeTransferFrom` — reverts cleanly if USDC transfer fails. |
+| Self-payment blocked | The merchant cannot pay their own request — contract reverts with `SelfPayment`. |
+| Expiry enforced | `pay()` reverts if the request has expired — enforced by the contract, not the UI. |
+| Cancel auth | Only the original merchant wallet can cancel a request. |
+| Isolation | Completely separate from every other contract on the network. |
+
+### 2.5 How to deploy a new contract
+
+You need a new deployment only if you want to change the contract logic (new feature, mainnet USDC address, bug fix). The existing contract keeps working — old payment links still resolve.
+
+Steps:
+1. Edit `contracts/ArcReceiptCheckout.sol`.
+2. Run `forge test` — all 41+ unit tests must pass.
+3. Get an independent audit if the change handles real funds.
+4. Say "deploy the contract" in Arc Studio — it deploys to Arc Testnet and returns the new address.
+5. Update `src/lib/contract.ts` (`CONTRACT_ADDRESS`) and `src/lib/deployment.ts` (`DEPLOYMENT_BLOCK`).
+6. Update this file and `AGENTS.md` with the new address and block number.
+7. Rebuild and redeploy the frontend.
+
+For mainnet: see `DEPLOYMENT-GUIDE.md`. Independent audit required.
+
+### 2.6 Authoritative data
+
+The contract is the sole source of truth for: amount, merchant address, expiry, status, payer, paidAt. Nothing in localStorage, sessionStorage, URLs, or query strings can override contract data.
 
 ---
 
-## 3. Merchant access
+## 3. Environment variables
 
-### 3.1 Configure the merchant wallet
+### 3.1 Complete variable reference
 
-```
-VITE_MERCHANT_ADDRESS=0xD995d0c31802A8D95C163f875fFefB40AB964eD6
-```
+The app reads exactly **two** variables from the environment. Everything else in `.env` is used only by Arc Studio's internal deployment tooling — not by the app itself.
 
-Set this in `.env` before building. The merchant workspace (`/merchant/*`) is
-only visible when the connected wallet matches this address.
+| Variable | Read by | What it does | Required for production? |
+|----------|---------|-------------|--------------------------|
+| `VITE_MERCHANT_ADDRESS` | App (`src/`) | Wallet address(es) allowed into the merchant workspace. Comma-separated for multiple. | Yes |
+| `VITE_APP_ORIGIN` | App (`src/`) | Base URL baked into QR codes and shareable links. Falls back to `window.location.origin` if unset. | Strongly recommended |
 
-**Important:** this is a frontend UI gate only. The contract allows any wallet to
-call `createRequest` directly on-chain. The gate prevents non-merchants from
-seeing the sell screen and order management — it does not prevent onchain calls.
+The following variables appear in `.env` but are **only used by Arc Studio deployment scripts** — the compiled app does not read them and you do not need them in Vercel:
 
-### 3.2 Merchant scope guard (Stage 1 fix)
+| Variable | Used by | What it does | Needed in Vercel? |
+|----------|---------|-------------|-------------------|
+| `RPC_PROXY_BASE_URL` | `scripts/compass-deploy.ts` | RPC proxy endpoint for Arc Studio's contract deployment tool. | No |
+| `RPC_PROXY_TOKEN` | `scripts/compass-deploy.ts` | Auth token for that RPC proxy. | No |
+| `RPC_PROXY_CHAINS` | `scripts/compass-deploy.ts` | Comma-separated chain list the proxy covers. | No |
 
-Order detail pages (`/merchant/orders/:id`) now check whether `req.merchant`
-(from the contract) matches `VITE_MERCHANT_ADDRESS` AND the connected wallet.
-If someone navigates directly to another merchant's order URL:
-- The order fields (amount, status, expiry) are shown in read-only mode.
-- QR code, Present order, Next order, and Copy link are **hidden**.
-- An amber notice is displayed: "This request belongs to a different merchant address."
+**Summary: if you download the code and deploy to Vercel yourself, you only need to set `VITE_MERCHANT_ADDRESS` and `VITE_APP_ORIGIN` in Vercel. The `RPC_PROXY_*` variables are Arc Studio internals — ignore them.**
 
-Management controls are never shown purely based on URL — contract data is always checked.
+### 3.2 How VITE_ variables work (important)
 
-### 3.3 Add multiple merchants
+`VITE_*` variables are **baked into the compiled JS bundle at build time** by Vite. They are not secret and are visible in the browser's network panel. This means:
+
+- Changing a `VITE_*` value in Vercel's dashboard does NOT update the live site — it only takes effect after a new build and deploy.
+- The two build paths are:
+  - **Arc Studio chat** → builds in the sandbox using the sandbox `.env` file → uploads compiled files to Vercel.
+  - **Vercel auto-deploy from GitHub** → Vercel builds using its own env var panel.
+
+For Arc Studio chat deploys: update both the sandbox `.env` (Code panel) AND Vercel's env var panel to keep them in sync.
+
+### 3.3 Add or change a merchant address (no code change needed)
 
 ```
 VITE_MERCHANT_ADDRESS=0xFirst...,0xSecond...,0xThird...
 ```
 
-Then edit `src/lib/merchant.ts` to split on commas:
-```ts
-const allowed = (import.meta.env.VITE_MERCHANT_ADDRESS || '')
-  .split(',').map(a => a.trim().toLowerCase())
-return allowed.includes(connectedAddress.toLowerCase()) ? 'authorized' : 'unauthorized'
-```
-Rebuild and redeploy after this change.
+Steps:
+1. Update `VITE_MERCHANT_ADDRESS` in the sandbox `.env` (Code panel).
+2. Update `VITE_MERCHANT_ADDRESS` in Vercel → Settings → Environment Variables.
+3. Say "redeploy" in chat (or Vercel dashboard → Deployments → Redeploy).
+
+### 3.4 Current values
+
+| Variable | Current value |
+|----------|--------------|
+| `VITE_MERCHANT_ADDRESS` | `0xD995d0c31802A8D95C163f875fFefB40AB964eD6,0x621f5Ed9dDCcdF1e51FBEdF356843bf53E69eA30` |
+| `VITE_APP_ORIGIN` | `https://arc-mr.vercel.app` |
 
 ---
 
-## 4. Merchant features
+## 4. Merchant access gate
 
-### 4.1 Sell (POS) — `/merchant`
+### 4.1 How the gate works
+
+The merchant workspace (`/merchant/*`) is only accessible when the connected wallet is in the `VITE_MERCHANT_ADDRESS` list. This is a **frontend UI gate only** — it does not change contract permissions. The contract allows any wallet to call `createRequest` directly onchain.
+
+### 4.2 Merchant scope guard
+
+Order detail pages (`/merchant/orders/:id`) check whether `req.merchant` (from the contract) matches one of the configured addresses AND the connected wallet matches. If someone navigates to another merchant's order URL:
+- The order fields (amount, status, expiry) are shown in read-only mode.
+- QR code, Present order, Next order, and Copy link are hidden.
+- An amber notice is displayed: "This request belongs to a different merchant address."
+
+Management controls are never shown purely based on URL — contract data is always checked.
+
+---
+
+## 5. Merchant features
+
+### 5.1 Sell (POS) — `/merchant`
 
 The Sell tab is the primary point-of-sale screen.
 
@@ -710,7 +797,90 @@ A: Navigate directly to `/merchant` in your browser. You must connect the config
 
 ---
 
-## 18. Stage history
+## 18. Deploying from scratch (download + Vercel guide)
+
+This section answers: "If I download the code and connect it to Vercel myself, what do I need to do?"
+
+### Step 1 — Prerequisites
+
+- Node.js 18+ and [Bun](https://bun.sh) installed (`npm install -g bun`)
+- A [Vercel account](https://vercel.com) (free tier is fine)
+- [Vercel CLI](https://vercel.com/docs/cli) installed: `npm install -g vercel`
+- Two wallet addresses you control (one or more to be the merchant)
+
+### Step 2 — Get the code
+
+Either:
+- Download as ZIP from Arc Studio (Code panel → Download), or
+- Clone from your GitHub repo if you pushed it there
+
+### Step 3 — Install dependencies
+
+```bash
+bun install
+```
+
+### Step 4 — Set up environment variables locally
+
+Create a `.env` file in the project root (copy from `.env.example`):
+
+```
+VITE_MERCHANT_ADDRESS=0xYourMerchantWallet
+VITE_APP_ORIGIN=https://your-vercel-app.vercel.app
+```
+
+For multiple merchants:
+```
+VITE_MERCHANT_ADDRESS=0xFirst...,0xSecond...
+```
+
+### Step 5 — Run locally to verify
+
+```bash
+bun run dev
+```
+
+Open `http://localhost:5173`. Connect your merchant wallet and navigate to `/merchant` — you should see the workspace.
+
+### Step 6 — Deploy to Vercel
+
+```bash
+vercel login
+vercel
+```
+
+Follow the prompts. When asked about build settings, Vercel will detect Vite automatically.
+
+### Step 7 — Set environment variables in Vercel
+
+In the Vercel dashboard → your project → **Settings → Environment Variables**:
+
+| Name | Value |
+|------|-------|
+| `VITE_MERCHANT_ADDRESS` | `0xYourMerchantWallet` (or comma-separated list) |
+| `VITE_APP_ORIGIN` | `https://your-app.vercel.app` |
+
+### Step 8 — Redeploy after setting env vars
+
+After saving env vars in Vercel, trigger a new deployment:
+- Vercel dashboard → **Deployments** → latest deployment → **⋯ → Redeploy**, or
+- Run `vercel --prod` from the CLI
+
+### Step 9 — Every time you change a merchant address
+
+1. Update `VITE_MERCHANT_ADDRESS` in Vercel dashboard.
+2. Trigger a redeploy (Vercel dashboard → Redeploy, or `vercel --prod`).
+3. No code change needed.
+
+### What does NOT need changing
+
+- Contract address, USDC address, chain ID, RPC endpoints — all hardcoded correctly for Arc Testnet.
+- ABI — compiled into `contracts/contract-metadata/ArcReceiptCheckout.json`.
+- Deployment block — hardcoded as 67,462,931 in `src/lib/deployment.ts`.
+
+---
+
+## 19. Stage history
 
 | Stage | When | Summary |
 |-------|------|---------|

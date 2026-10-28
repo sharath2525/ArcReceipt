@@ -45,6 +45,23 @@ import { PublicReceipt } from './PublicReceipt'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
+/** Decode a wallet/contract error into a short user-friendly message. */
+function decodeTxError(msg: string): string {
+  if (/user rejected|User rejected|4001/i.test(msg)) return 'Rejected in wallet.'
+  if (/insufficient funds|InsufficientFunds/i.test(msg)) return 'Insufficient balance for gas.'
+  if (/ZeroAmount/i.test(msg)) return 'Amount must be greater than zero.'
+  if (/ExpiryMustBeFuture/i.test(msg)) return 'Expiry must be in the future.'
+  if (/ExpiryTooFar/i.test(msg)) return 'Expiry is too far ahead (max 30 days).'
+  if (/RequestNotFound/i.test(msg)) return 'Request not found.'
+  if (/RequestNotOpen/i.test(msg)) return 'Request is no longer open.'
+  if (/RequestExpired/i.test(msg)) return 'Request has expired.'
+  if (/NotMerchant/i.test(msg)) return 'Only the merchant can cancel this request.'
+  if (/SelfPayment/i.test(msg)) return 'You cannot pay your own request.'
+  if (/network changed|underlying network/i.test(msg)) return 'Network changed — please switch back to Arc Testnet.'
+  if (/timeout|fetch failed|RPC/i.test(msg)) return 'Network error — check your connection and retry.'
+  return msg.replace(/^[\w.]+Error:\s*/i, '').slice(0, 120)
+}
+
 const PAGE_SIZE = 20n
 
 // ─── PendingBanner: shown while a submitted TX is being tracked ────────────
@@ -669,8 +686,7 @@ export function MerchantDashboard({
           toast.success('Submitted — confirming…')
         },
         onError: (e) => {
-          const msg = /user rejected|4001/i.test(e.message) ? 'Rejected in wallet.' : 'Failed: ' + e.message.slice(0, 80)
-          toast.error(msg)
+          toast.error(decodeTxError(e.message))
         },
       }
     )
@@ -766,8 +782,7 @@ export function MerchantDashboard({
           setCancelStatus('confirming')
         },
         onError: (e) => {
-          const msg = /user rejected|4001/i.test(e.message) ? 'Rejected.' : e.message.slice(0, 80)
-          toast.error(msg)
+          toast.error(decodeTxError(e.message))
           setCancelStatus('idle')
           setCancellingId(null)
         },

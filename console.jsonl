@@ -890,3 +890,17 @@
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792768804371}
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792817726341}
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792817886570}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1793081952268}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793081952269}
+{"level":"debug","message":"[vite] invalidate /src/components/SellPage.tsx: Could not Fast Refresh (\"clearCartForAccount\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1793081955468}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1793081955468}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793081955468}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1793081956803}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSellPage.tsx","timestamp":1793081956803}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1793081956803}
+{"level":"debug","message":"[vite] invalidate /src/components/SellPage.tsx: Could not Fast Refresh (\"clearCartForAccount\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1793081963099}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1793081963099}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793081963099}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1793081964634}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSellPage.tsx","timestamp":1793081964634}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantOrderDetailPage.tsx","timestamp":1793081964634}

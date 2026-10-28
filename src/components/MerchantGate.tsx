@@ -59,14 +59,9 @@ export function MerchantGate({ children }: MerchantGateProps) {
           <div className="flex justify-center">
             <ConnectKitButton />
           </div>
-          {MERCHANT_ADDRESSES.length > 0 && (
-            <div className="text-xs text-slate-400 font-mono space-y-0.5">
-              <p className="text-slate-500 not-italic">Authorised {MERCHANT_ADDRESSES.length === 1 ? 'wallet' : 'wallets'}:</p>
-              {MERCHANT_ADDRESSES.map(addr => (
-                <p key={addr}>{addr.slice(0, 8)}…{addr.slice(-6)}</p>
-              ))}
-            </div>
-          )}
+          <p className="text-xs text-slate-400">
+            Only the configured merchant {MERCHANT_ADDRESSES.length === 1 ? 'wallet' : 'wallets'} can access this workspace.
+          </p>
         </div>
       </div>
     )

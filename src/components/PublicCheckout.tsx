@@ -110,6 +110,47 @@ function validatePaymentReceipt(
 
 const USDC_ADDRESS = getUsdc(ARC_TESTNET_ID).address
 
+// ── Live countdown ────────────────────────────────────────────────────────────
+// Returns a formatted countdown string ("4m 32s", "59s", "Expired") that
+// updates every second. expiresAt is a Unix timestamp in seconds (bigint).
+// isPaid/isCancelled suppress urgency — the request is already settled so
+// there is no time pressure to show to the customer.
+function useCountdown(
+  expiresAt: bigint | undefined,
+  settled: boolean
+): { label: string; urgent: boolean } {
+  const [now, setNow] = React.useState(() => Math.floor(Date.now() / 1000))
+  useEffect(() => {
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1_000)
+    return () => clearInterval(id)
+  }, [])
+
+  if (expiresAt === undefined) return { label: '—', urgent: false }
+  // Settled requests (paid/cancelled): show static expiry label only, no urgency
+  if (settled) {
+    const secs = Number(expiresAt) - now
+    if (secs <= 0) return { label: 'Expired', urgent: false }
+    if (secs < 3600) {
+      const m = Math.floor(secs / 60); const s = secs % 60
+      return { label: `${m}m ${s}s`, urgent: false }
+    }
+    const h = Math.floor(secs / 3600); const m = Math.floor((secs % 3600) / 60)
+    return { label: `${h}h ${m}m`, urgent: false }
+  }
+  // Open request: show live countdown with urgency colouring
+  const secs = Number(expiresAt) - now
+  if (secs <= 0) return { label: 'Expired', urgent: true }
+  if (secs < 60) return { label: `${secs}s`, urgent: true }
+  if (secs < 3600) {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return { label: `${m}m ${s}s`, urgent: secs < 120 }
+  }
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  return { label: `${h}h ${m}m`, urgent: false }
+}
+
 // ── Phase type ────────────────────────────────────────────────────────────────
 
 type Phase = 'preview' | 'approving' | 'paying' | 'done' | 'unresolved'
@@ -247,17 +288,20 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
   }, [address, requestId, approveHash, payHash, phase])
 
   // Wait for approve confirmation
-  const { isLoading: isApproveConfirming, isSuccess: approveConfirmed } =
-    useWaitForTransactionReceipt({
-      hash: approveHash,
-      chainId: ARC_TESTNET_ID,
-      pollingInterval: 1_000,
-      confirmations: 1,
-    })
+  const {
+    isLoading: isApproveConfirming, isSuccess: approveConfirmed,
+    isError: isApproveError, error: approveReceiptError,
+  } = useWaitForTransactionReceipt({
+    hash: approveHash,
+    chainId: ARC_TESTNET_ID,
+    pollingInterval: 1_000,
+    confirmations: 1,
+  })
 
   // Wait for pay confirmation
   const {
     isLoading: isPayConfirming, isSuccess: payConfirmed, data: payReceipt,
+    isError: isPayError, error: payReceiptError,
   } = useWaitForTransactionReceipt({
     hash: payHash,
     chainId: ARC_TESTNET_ID,
@@ -332,6 +376,37 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
     if (address) clearPendingPay(address, requestId)
     onPaid?.(payHash)
   }, [payConfirmed, payHash, payReceipt, onPaid, refetch, address, requestId, req])
+
+  // ── Approve TX reverted ──────────────────────────────────────────────────
+  // wagmi fires isError when the TX is mined but execution failed (reverted).
+  // Reset to preview so the customer can retry approval.
+  useEffect(() => {
+    if (!isApproveError || !approveReceiptError) return
+    const msg = decodeError(approveReceiptError.message)
+    setErrMsg(`Approval failed: ${msg}`)
+    toast.error(`Approval transaction failed: ${msg}`)
+    setApproveHash(undefined)
+    setPhase('preview')
+    resetWrite()
+  }, [isApproveError, approveReceiptError, resetWrite])
+
+  // ── Pay TX reverted ───────────────────────────────────────────────────────
+  // A reverted pay TX leaves the request still open — the customer can retry
+  // without the merchant creating a new order. Clear payHash and stay on
+  // the paying phase so the Pay button becomes active again.
+  useEffect(() => {
+    if (!isPayError || !payReceiptError) return
+    const msg = decodeError(payReceiptError.message)
+    setErrMsg(`Payment failed: ${msg} — you can retry below.`)
+    toast.error(`Payment transaction failed: ${msg}`)
+    // Clear the failed hash so the Pay button re-enables
+    setPayHash(undefined)
+    resetWrite()
+    // Stay on 'paying' phase — request is still open, customer can retry
+    setPhase('paying')
+    // Refetch contract state to confirm the request is still open
+    void refetch()
+  }, [isPayError, payReceiptError, resetWrite, refetch])
 
   // ── Expiry notification ───────────────────────────────────────────────────
   // Track the last-seen open state so we can detect the open→expired transition
@@ -745,6 +820,9 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
 
 function RequestPreviewRows({ req, requestId }: { req: OnchainRequest; requestId: bigint }) {
   const [copiedAddr, setCopiedAddr] = React.useState(false)
+  // settled = paid or cancelled — no urgency styling needed
+  const settled = req.status === 1 || req.status === 2
+  const { label: countdown, urgent } = useCountdown(req.expiresAt, settled)
   const copyAddr = () => {
     void navigator.clipboard.writeText(req.merchant).then(() => {
       setCopiedAddr(true); setTimeout(() => setCopiedAddr(false), 2000)
@@ -771,8 +849,18 @@ function RequestPreviewRows({ req, requestId }: { req: OnchainRequest; requestId
           </button>
         </div>
       </div>
-      <Row label={<span className="flex items-center gap-0.5"><Clock size={11} /> Expires</span>}
-        value={formatTs(req.expiresAt)} />
+      {/* Live countdown — turns red/amber when under 2 minutes */}
+      <div className="flex justify-between gap-2">
+        <span className="text-slate-400 shrink-0 flex items-center gap-0.5">
+          <Clock size={11} /> Expires
+        </span>
+        <span className={urgent ? 'font-semibold text-rose-600' : ''}>
+          {formatTs(req.expiresAt)}{' '}
+          <span className={`tabular-nums ${urgent ? 'text-rose-600' : 'text-slate-400'}`}>
+            ({countdown})
+          </span>
+        </span>
+      </div>
       <Row label="Network" value="Arc Testnet (5042002)" />
     </div>
   )

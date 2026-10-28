@@ -57,6 +57,21 @@ export interface CartItem {
   qty: number
 }
 
+// ─── Error decoder ────────────────────────────────────────────────────────────
+function decodeTxError(msg: string): string {
+  if (/user rejected|User rejected|4001/i.test(msg)) return 'Rejected in wallet.'
+  if (/insufficient funds|InsufficientFunds/i.test(msg)) return 'Insufficient balance for gas.'
+  if (/ZeroAmount/i.test(msg)) return 'Amount must be greater than zero.'
+  if (/ExpiryMustBeFuture/i.test(msg)) return 'Expiry must be in the future.'
+  if (/ExpiryTooFar/i.test(msg)) return 'Expiry is too far ahead (max 30 days).'
+  if (/RequestNotFound/i.test(msg)) return 'Request not found.'
+  if (/RequestNotOpen/i.test(msg)) return 'Request is no longer open.'
+  if (/RequestExpired/i.test(msg)) return 'Request has expired.'
+  if (/network changed|underlying network/i.test(msg)) return 'Network changed — switch back to Arc Testnet.'
+  if (/timeout|fetch failed|RPC/i.test(msg)) return 'Network error — check connection and retry.'
+  return msg.replace(/^[\w.]+Error:\s*/i, '').slice(0, 120)
+}
+
 // ─── Default menu presets ─────────────────────────────────────────────────────
 // Sample prices only — not representative of any real business.
 
@@ -709,9 +724,7 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
           toast.success('Submitted — confirming…')
         },
         onError: (e) => {
-          const msg = /user rejected|4001/i.test(e.message)
-            ? 'Rejected in wallet.'
-            : e.message.slice(0, 120)
+          const msg = decodeTxError(e.message)
           setTxError(msg)
           toast.error(msg)
         },
