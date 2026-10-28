@@ -22,17 +22,17 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   useAccount, useWriteContract, useWaitForTransactionReceipt,
-  useSwitchChain, useReadContract, useReadContracts,
+  useReadContract, useReadContracts,
 } from 'wagmi'
 import { toast } from 'sonner'
 import { QRCodeSVG } from 'qrcode.react'
-import { TokenUSDC } from '@web3icons/react'
+
 import {
-  Plus, Copy, CheckCircle, ExternalLink, AlertCircle, QrCode, X,
+  Copy, CheckCircle, ExternalLink, AlertCircle, QrCode, X,
   Loader2, ChevronDown, Receipt, RefreshCw,
 } from 'lucide-react'
 import { buildTxExplorerUrl } from '@/onchain-facts'
-import { parseUsdc, formatUsdc } from '@/onchain-money'
+import { formatUsdc } from '@/onchain-money'
 import {
   CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
   extractIdFromReceipt, buildPaymentLink, type OnchainRequest,
@@ -157,157 +157,6 @@ function PendingBanner({ hash, status, meta, onDismiss }: PendingBannerProps) {
   )
 }
 
-// ─── Expiry presets (§3.1: counter-friendly including 5m/15m/30m) ─────────────
-
-interface ExpiryPreset { label: string; seconds: number }
-const EXPIRY_PRESETS: ExpiryPreset[] = [
-  { label: '5m',  seconds: 5 * 60 },
-  { label: '15m', seconds: 15 * 60 },
-  { label: '30m', seconds: 30 * 60 },
-  { label: '1d',  seconds: 86_400 },
-  { label: '3d',  seconds: 3 * 86_400 },
-  { label: '30d', seconds: 30 * 86_400 },
-]
-
-// ─── CreateForm: purely presentational ────────────────────────────────────────
-
-interface CreateFormProps {
-  isWalletPending: boolean
-  pendingMeta?: Record<string, string>   // frozen amount/days while pending
-  onSubmit: (amount: string, expirySeconds: string) => void
-}
-
-function CreateForm({ isWalletPending, pendingMeta, onSubmit }: CreateFormProps) {
-  const { address, chainId } = useAccount()
-  const [amount, setAmount]       = useState(pendingMeta?.amount ?? '')
-  const [expiryKey, setExpiryKey] = useState(pendingMeta?.expiryKey ?? '86400') // default 1d
-  const [open, setOpen]           = useState(false)
-  const [confirmed, setConfirmed] = useState(false)  // review-before-sign step
-
-  // Freeze form to submitted values while TX is pending
-  const frozen = isWalletPending && !!pendingMeta
-  const isWrongChain = !!address && chainId !== ARC_TESTNET_ID
-  const activeKey = frozen ? (pendingMeta?.expiryKey ?? expiryKey) : expiryKey
-  const activePreset = EXPIRY_PRESETS.find(p => String(p.seconds) === activeKey) ?? EXPIRY_PRESETS[3]
-
-  if (!open) {
-    return (
-      <button onClick={() => { setOpen(true); setConfirmed(false) }}
-        className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
-        <Plus size={16} /> New Request
-      </button>
-    )
-  }
-
-  // Review step — shown before wallet prompt (§3.1: review amount/merchant/network/expiry)
-  if (confirmed && amount && !isWalletPending) {
-    const amtNum = parseFloat(amount)
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-slate-800">Review request</p>
-          <button onClick={() => setConfirmed(false)} className="text-slate-400 hover:text-slate-600">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="rounded-xl bg-slate-50 p-3 space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-slate-400 text-xs">Amount</span>
-            <span className="font-semibold text-slate-800">{isNaN(amtNum) ? amount : amtNum.toFixed(6)} USDC</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-400 text-xs">Expires in</span>
-            <span className="text-slate-700">{activePreset.label}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-400 text-xs">Network</span>
-            <span className="text-slate-700">Arc Testnet (5042002)</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-400 text-xs">Merchant</span>
-            <span className="font-mono text-slate-700 text-xs">{address ? `${address.slice(0,8)}…${address.slice(-6)}` : '—'}</span>
-          </div>
-        </div>
-        <p className="text-xs text-slate-400">
-          Creating a request requires a wallet transaction. The amount and expiry are stored
-          onchain and cannot be changed after signing.
-        </p>
-        {isWrongChain ? (
-          <button onClick={() => onSubmit(amount, activeKey)}
-            className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
-            <AlertCircle size={16} /> Switch to Arc Testnet to continue
-          </button>
-        ) : (
-          <button
-            onClick={() => onSubmit(amount, activeKey)}
-            disabled={!address}
-            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-semibold text-sm transition-colors"
-          >
-            Confirm &amp; sign in wallet
-          </button>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-800">New payment request</p>
-        <button onClick={() => { setOpen(false); setConfirmed(false) }} disabled={isWalletPending}
-          className="text-slate-400 hover:text-slate-600 disabled:opacity-30"><X size={16} /></button>
-      </div>
-      {/* Amount */}
-      <div className="space-y-1">
-        <label className="text-xs font-semibold tracking-widest uppercase text-slate-400">Amount (USDC)</label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2">
-            <TokenUSDC variant="branded" size={18} />
-          </span>
-          <input type="number" min="0" step="0.000001"
-            value={frozen ? (pendingMeta?.amount ?? amount) : amount}
-            onChange={e => { if (!frozen) setAmount(e.target.value) }}
-            readOnly={frozen}
-            placeholder="0.00"
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          />
-        </div>
-      </div>
-      {/* Expiry — counter-friendly presets per §3.1 */}
-      <div className="space-y-1">
-        <label className="text-xs font-semibold tracking-widest uppercase text-slate-400">Expires in</label>
-        <div className="flex gap-1.5 flex-wrap">
-          {EXPIRY_PRESETS.map(p => (
-            <button key={p.seconds} onClick={() => { if (!frozen) setExpiryKey(String(p.seconds)) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                activeKey === String(p.seconds)
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              } ${frozen ? 'cursor-not-allowed' : ''}`}>
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {isWalletPending ? (
-        <button disabled
-          className="w-full py-3 rounded-xl bg-slate-200 text-slate-500 font-semibold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
-          <Loader2 size={16} className="animate-spin" /> Waiting for wallet…
-        </button>
-      ) : (
-        <button
-          onClick={() => setConfirmed(true)}
-          disabled={!address || !amount || parseFloat(amount) <= 0}
-          className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-semibold text-sm transition-colors"
-        >
-          Review &amp; create
-        </button>
-      )}
-    </div>
-  )
-}
-
 // ─── RequestRow ───────────────────────────────────────────────────────────────
 
 interface RequestRowProps {
@@ -324,7 +173,9 @@ function RequestRow({ id, req, onCancel, cancellingId, cancelStatus, onShowQr: _
   const [copied, setCopied]     = useState(false)
   const [showQr, setShowQr]     = useState(false)
 
-  const isThisCancelling = cancellingId === id
+  // H2 fix: use string comparison so restored cancellingId (parsed from meta)
+  // matches the contract-read bigint reliably across all JS environments.
+  const isThisCancelling = cancellingId !== null && cancellingId.toString() === id.toString()
   const meta    = statusMeta(req.status, req)
   const expired = isExpired(req) && req.status === 0
   const canCancel = req.status === 0 && !expired
@@ -555,16 +406,15 @@ type StatusFilter = 'all' | 'open' | 'paid' | 'expired' | 'cancelled'
 
 // ─── MerchantDashboard ────────────────────────────────────────────────────────
 
+// M2-E: mode='sell' is dead code — SellPage is used directly for selling.
+// MerchantDashboard is now orders-only. The mode prop is kept for backward
+// compatibility but 'sell' is no longer rendered. Default changed to 'orders'.
 export function MerchantDashboard({
-  mode = 'sell',
   onNavigateToOrder: _onNavigateToOrder,
 }: {
-  mode?: 'sell' | 'orders'
-  /** Called when the user wants to view/share a specific order's QR. */
   onNavigateToOrder?: (id: bigint) => void
 }) {
-  const { address, chainId } = useAccount()
-  const { switchChain } = useSwitchChain()
+  const { address } = useAccount()
 
   // ── Pending TX state — restored from sessionStorage on mount ────────────────
   const [createHash, setCreateHash] = useState<`0x${string}` | undefined>(() => {
@@ -581,24 +431,35 @@ export function MerchantDashboard({
     useState<'pending' | 'success' | 'reverted' | 'timeout' | 'rpc-error'>('pending')
   const [showCreateBanner, setShowCreateBanner] = useState(!!createHash)
 
-  // When account changes, restore any pending TX for the new account
+  // When account changes, restore any pending TXs for the new account
   useEffect(() => {
-    if (!address) { setCreateHash(undefined); setCreateMeta(undefined); setShowCreateBanner(false); return }
-    const saved = loadPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'createRequest')
-    if (saved) {
-      setCreateHash(saved.hash)
-      setCreateMeta(saved.meta)
-      setCreateTxStatus('pending')
-      setShowCreateBanner(true)
+    if (!address) {
+      setCreateHash(undefined); setCreateMeta(undefined); setShowCreateBanner(false)
+      setCancellingId(null); setCancelHash(undefined); setCancelStatus('idle')
+      return
+    }
+    const savedCreate = loadPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'createRequest')
+    if (savedCreate) {
+      setCreateHash(savedCreate.hash); setCreateMeta(savedCreate.meta)
+      setCreateTxStatus('pending'); setShowCreateBanner(true)
     } else {
-      setCreateHash(undefined)
-      setCreateMeta(undefined)
-      setShowCreateBanner(false)
+      setCreateHash(undefined); setCreateMeta(undefined); setShowCreateBanner(false)
+    }
+    // H1: restore cancel state for new account
+    const savedCancel = loadPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'cancelRequest')
+    if (savedCancel) {
+      setCancelHash(savedCancel.hash)
+      setCancelStatus('confirming')
+      if (savedCancel.meta?.id) {
+        try { setCancellingId(BigInt(savedCancel.meta.id)) } catch { /* ignore */ }
+      }
+    } else {
+      setCancelHash(undefined); setCancelStatus('idle'); setCancellingId(null)
     }
   }, [address])
 
-  // ── Create write hook ──────────────────────────────────────────────────────
-  const { writeContract, isPending: isCreatePending, reset: resetCreate } = useWriteContract()
+  // ── Create write hook (used only for dismiss/reset, not for submission) ──────
+  const { reset: resetCreate } = useWriteContract()
 
   // ── Receipt polling pinned to Arc Testnet chain ID ─────────────────────────
   const {
@@ -665,33 +526,6 @@ export function MerchantDashboard({
     toast.error('Could not confirm — check explorer for status')
   }, [isReceiptError, createHash])
 
-  const handleCreateSubmit = useCallback((amount: string, expiryKey: string) => {
-    if (!address) return
-    if (chainId !== ARC_TESTNET_ID) { switchChain({ chainId: ARC_TESTNET_ID }); return }
-    let parsed: bigint
-    try { parsed = parseUsdc(amount) } catch { toast.error('Invalid amount'); return }
-    if (parsed === 0n) { toast.error('Amount must be > 0'); return }
-    const expiresAt = BigInt(Math.floor(Date.now() / 1000) + Number(expiryKey))
-    const meta = { amount, expiryKey }
-    writeContract(
-      { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'createRequest', args: [parsed, expiresAt], chainId: ARC_TESTNET_ID },
-      {
-        onSuccess: (txHash) => {
-          savePendingTx({ chainId: ARC_TESTNET_ID, contract: CONTRACT_ADDRESS, account: address, action: 'createRequest', hash: txHash, meta })
-          setCreateHash(txHash)
-          setCreateMeta(meta)
-          setCreateTxStatus('pending')
-          setShowCreateBanner(true)
-          processedHash.current = null
-          toast.success('Submitted — confirming…')
-        },
-        onError: (e) => {
-          toast.error(decodeTxError(e.message))
-        },
-      }
-    )
-  }, [address, chainId, switchChain, writeContract])
-
   const handleCreateDismiss = useCallback(() => {
     resetCreate()
     setCreateHash(undefined)
@@ -712,9 +546,18 @@ export function MerchantDashboard({
 
   // ── Cancel ─────────────────────────────────────────────────────────────────
   const { writeContract: doCancel, isPending: isCancelWallet } = useWriteContract()
-  const [cancellingId, setCancellingId] = useState<bigint | null>(null)
-  // Stage 1 fix: restore persisted cancel hash on mount so a refresh during
-  // cancel confirmation doesn't lose tracking.
+  // H1 fix: restore cancellingId from pending-tx meta on mount so the per-row
+  // "Cancelling…" indicator is visible after a page refresh.
+  // H2 fix: compare cancellingId using toString() not === (bigint from meta is
+  // parsed as string, bigint from contract read is a native bigint — === fails).
+  const [cancellingId, setCancellingId] = useState<bigint | null>(() => {
+    if (!address) return null
+    const saved = loadPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'cancelRequest')
+    if (saved?.meta?.id) {
+      try { return BigInt(saved.meta.id) } catch { return null }
+    }
+    return null
+  })
   const [cancelHash, setCancelHash] = useState<`0x${string}` | undefined>(() => {
     if (!address) return undefined
     const saved = loadPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'cancelRequest')
@@ -724,11 +567,7 @@ export function MerchantDashboard({
     useState<'idle' | 'wallet' | 'confirming' | 'success' | 'reverted' | 'error'>(() => {
       if (!address) return 'idle'
       const saved = loadPendingTx(ARC_TESTNET_ID, CONTRACT_ADDRESS, address, 'cancelRequest')
-      if (saved?.hash) {
-        // Restore the cancelled ID from meta if available
-        return 'confirming'
-      }
-      return 'idle'
+      return saved?.hash ? 'confirming' : 'idle'
     })
 
   const { data: cancelReceipt, isSuccess: cancelReceiptOk, isError: cancelReceiptErr } =
@@ -814,17 +653,8 @@ export function MerchantDashboard({
         />
       )}
 
-      {/* SELL mode: show create form */}
-      {mode === 'sell' && (!showCreateBanner || (!isCreateConfirming && !isCreatePending)) && (
-        <CreateForm
-          isWalletPending={isCreatePending}
-          pendingMeta={isCreatePending ? createMeta : undefined}
-          onSubmit={handleCreateSubmit}
-        />
-      )}
-
-      {/* ORDERS mode: filter bar */}
-      {mode === 'orders' && hasRequests && (
+      {/* Filter bar — orders mode */}
+      {hasRequests && (
         <div className="flex gap-1.5 flex-wrap">
           {filterLabels.map(f => (
             <button key={f.key} onClick={() => setStatusFilter(f.key)}
@@ -862,7 +692,7 @@ export function MerchantDashboard({
           </div>
         ) : !hasRequests ? (
           <p className="text-sm text-slate-400 text-center py-6">
-            {mode === 'sell' ? 'No requests yet. Create your first above.' : 'No requests yet.'}
+            No requests yet.
           </p>
         ) : (
           <>

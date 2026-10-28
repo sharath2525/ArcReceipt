@@ -111,3 +111,12 @@ All tests run against the deployed contract at `0x4017d948c7a8f370f5e8d0eee6da7b
 | 2026-10-26 | Multi-address merchant support via comma-separated `VITE_MERCHANT_ADDRESS` | Code review + live test |
 | 2026-10-27 | Countdown red suppressed on paid/cancelled requests (C1-T9) | Code review + live test |
 | 2026-10-27 | Better error decoding for createRequest and cancel failures (C1-T12) | Code review + live test |
+| 2026-10-28 | H1: `cancellingId` persisted and restored from pending-tx meta on refresh | Code review |
+| 2026-10-28 | H2: `isThisCancelling` now uses `.toString()` comparison (bigint safe after restore) | Code review |
+| 2026-10-28 | H3: PublicReceipt recovery now counts failed chunks, shows warning + Retry button | Code review |
+| 2026-10-28 | H4: MyReceipts auto-tail-refresh 5s after first scan completion | Code review |
+| 2026-10-28 | M1-A: Merchant scan lookback confirmed at 500k blocks (~2.9 days) | Code review |
+| 2026-10-28 | M1-D: CSV export gates on `requestMap` fully loaded; warns if partial | Code review |
+| 2026-10-28 | M2-D: Expiry presets unified to 5m/15m/30m/1hr across MerchantDashboard + SellPage | Code review |
+| 2026-10-28 | M2-E: `MerchantDashboard mode='sell'` dead code removed; `CreateForm` removed | Code review |
+| 2026-10-28 | C3: `VITE_APP_ORIGIN` set to `https://arc-mr.vercel.app` in Vercel env vars | Live confirmed |

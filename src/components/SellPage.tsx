@@ -620,11 +620,12 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
   }
 
   // ── Expiry presets ───────────────────────────────────────────────────────────
+  // M2-D: unified presets matching MerchantDashboard — 5m/15m/30m/1hr
   const EXPIRY_OPTS = [
     { label: '5m',  s: 5 * 60 },
     { label: '15m', s: 15 * 60 },
     { label: '30m', s: 30 * 60 },
-    { label: '1d',  s: 86_400 },
+    { label: '1hr', s: 60 * 60 },
   ]
 
   // ── Write contract ───────────────────────────────────────────────────────────

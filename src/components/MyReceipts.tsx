@@ -469,6 +469,19 @@ export function MyReceipts() {
     void doScan(address, fromBlock, undefined, seedRec, seedFrom, seedTo, myGen)
   }, [address, phase, doScan])
 
+  // H4: After a scan completes, fire one automatic tail update after 5s to catch
+  // any blocks that arrived after `head` was read at scan start.
+  // handleUpdate is stable between renders so it's safe in the dep array.
+  const autoTailRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (phase !== 'complete' || !address) return
+    autoTailRef.current = setTimeout(() => {
+      autoTailRef.current = null
+      handleUpdate()
+    }, 5_000)
+    return () => { if (autoTailRef.current) { clearTimeout(autoTailRef.current); autoTailRef.current = null } }
+  }, [phase, address, handleUpdate])
+
   /** Rebuild: clear cache, rescan from deployment block. Shows confirmation. */
   const handleRebuild = useCallback(() => {
     if (!address || phase === 'scanning') return

@@ -14,7 +14,6 @@ export default function MerchantOrdersPage() {
         Orders
       </h1>
       <MerchantDashboard
-        mode="orders"
         onNavigateToOrder={(id) => void navigate(`/merchant/orders/${id.toString()}`)}
       />
     </div>

@@ -246,7 +246,7 @@ export default function ArcReceiptApp() {
 
         {/* ORDERS — ALWAYS merchant history; never replaced by checkout */}
         {route.view === 'orders' && (
-          <MerchantDashboard mode="orders" onNavigateToOrder={(id) => navigate({ view: 'order', requestId: id })} />
+          <MerchantDashboard onNavigateToOrder={(id) => navigate({ view: 'order', requestId: id })} />
         )}
 
         {/* CHECKOUT — customer-facing */}

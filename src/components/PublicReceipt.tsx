@@ -67,6 +67,9 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
   // B: Recovered payment TX hash from getLogs (fresh-browser case)
   const [recoveredTxHash, setRecoveredTxHash] = useState<`0x${string}` | undefined>(hintTxHash)
   const [recovering, setRecovering] = useState(false)
+  // H3: track failed chunks so we can warn and offer retry
+  const [recoveryFailedChunks, setRecoveryFailedChunks] = useState(0)
+  const [recoveryRetry, setRecoveryRetry] = useState(0)   // increment to re-trigger
   // Use a ref to track in-flight state — avoids triggering the effect again
   const recoveringRef = useRef(false)
 
@@ -81,13 +84,12 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
   const isPaidReq = !!(req && req.status === 1)
 
   useEffect(() => {
-    // Only recover when: request is paid, no hint was provided, not already recovered
+    // Only recover when: request is paid, no hint, not already recovered
     if (!isPaidReq || hintTxHash || recoveredTxHash || !publicClient) return
     if (recoveringRef.current) return
 
     recoveringRef.current = true
-    // Set recovering state OUTSIDE the synchronous part of the effect
-    // to avoid the "setRecovering directly in effect" lint warning.
+    setRecoveryFailedChunks(0)
     const t = setTimeout(() => setRecovering(true), 0)
 
     void (async () => {
@@ -95,12 +97,11 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
         const head = await publicClient.getBlockNumber()
         let from = DEPLOYMENT_BLOCK
         let found: `0x${string}` | undefined
+        let failed = 0
 
         while (from <= head && !found) {
           const to = from + RECOVERY_CHUNK - 1n < head ? from + RECOVERY_CHUNK - 1n : head
           try {
-            // B: typed event lookup filtered by requestId (topic-1)
-            // Cast via unknown to typed shape — post-validate each field.
             interface RawPayLog {
               address: string
               args?: { id?: bigint }
@@ -113,27 +114,30 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
               fromBlock: from,
               toBlock: to,
             })) as unknown as RawPayLog[]
-            if (logs.length > 0) {
-              for (const log of logs) {
-                const args = log.args
-                if (args?.id === requestId &&
-                    log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()) {
-                  if (log.transactionHash) {
-                    found = log.transactionHash
-                    break
-                  }
-                }
+            for (const log of logs) {
+              if (log.args?.id === requestId &&
+                  log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() &&
+                  log.transactionHash) {
+                found = log.transactionHash
+                break
               }
             }
           } catch {
-            // Skip this chunk on failure — try next range
+            // H3: count failed chunks instead of silently skipping
+            failed++
           }
           from = to + 1n
         }
 
-        if (found) setRecoveredTxHash(found)
+        if (found) {
+          setRecoveredTxHash(found)
+          setRecoveryFailedChunks(0)
+        } else {
+          // H3: expose failure count so the UI can warn + offer retry
+          setRecoveryFailedChunks(failed)
+        }
       } catch {
-        // Recovery failed — receipt still renders, just without a TX link
+        setRecoveryFailedChunks(1)
       } finally {
         recoveringRef.current = false
         setRecovering(false)
@@ -142,7 +146,7 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
 
     return () => { clearTimeout(t) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPaidReq, hintTxHash])
+  }, [isPaidReq, hintTxHash, recoveryRetry])
 
   // Fix 4: show Request #N immediately — ID is known from props
   if (isLoading) {
@@ -274,6 +278,27 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
               <div className="flex items-center gap-1.5 text-xs text-emerald-600">
                 <Loader2 size={11} className="animate-spin" />
                 <span>Recovering transaction from chain…</span>
+              </div>
+            ) : recoveryFailedChunks > 0 ? (
+              // H3: show warning when chunks failed + offer retry
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs text-amber-700">
+                  <AlertCircle size={11} className="shrink-0" />
+                  <span>Recovery incomplete — {recoveryFailedChunks} block range{recoveryFailedChunks > 1 ? 's' : ''} failed (rate limit or network). TX link unavailable.</span>
+                </div>
+                <button
+                  onClick={() => { recoveringRef.current = false; setRecoveryRetry(r => r + 1) }}
+                  className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline font-medium"
+                >
+                  <Loader2 size={10} /> Retry recovery
+                </button>
+                <a
+                  href={buildAddressExplorerUrl(ARC_TESTNET_ID, CONTRACT_ADDRESS)}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-emerald-700 hover:underline"
+                >
+                  <ExternalLink size={12} /> View contract events on explorer
+                </a>
               </div>
             ) : (
               <a

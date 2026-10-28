@@ -28,6 +28,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react'
+import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronDown, ChevronUp, RefreshCw, AlertTriangle,
@@ -767,7 +768,8 @@ export default function MerchantReportsPage() {
     scanMode, isRecentComplete, rescan, rescanFull,
   } = useEventHistory(merchant)
 
-  const { requestMap } = useMerchantAllRequests(merchant)
+  // M1-D: destructure isLoading + isPartial so export can gate on requestMap readiness
+  const { requestMap, isLoading: requestMapLoading, isPartial: requestMapPartial } = useMerchantAllRequests(merchant)
 
   const [activePeriod, setActivePeriod] = useState<PeriodKey>('this-month')
   const [customFrom, setCustomFrom] = useState(0)
@@ -871,6 +873,14 @@ export default function MerchantReportsPage() {
   // ── Export handlers ───────────────────────────────────────────────────────
 
   const handleExport = useCallback(() => {
+    // M1-D: block export if requestMap hasn't fully loaded yet — statuses would show "Unknown"
+    if (requestMapLoading) {
+      toast('Request statuses still loading — wait a moment and try again.')
+      return
+    }
+    if (requestMapPartial) {
+      toast.warning('Some request statuses failed to load. Export may show "Unknown" for affected rows.')
+    }
     if (isIncomplete && !showExportWarning) {
       setShowExportWarning(true)
       return
@@ -888,7 +898,7 @@ export default function MerchantReportsPage() {
     )
     const date = new Date().toISOString().slice(0, 10)
     downloadCsv(csv, `arcreceipt-${activePeriod}-${date}.csv`)
-  }, [isIncomplete, showExportWarning, activePeriodSpec, merchant, scanProgress, coverageComplete, detailRows, activePeriod])
+  }, [isIncomplete, showExportWarning, activePeriodSpec, merchant, scanProgress, coverageComplete, detailRows, activePeriod, requestMapLoading, requestMapPartial])
 
   const handlePrint = useCallback(() => {
     window.print()
