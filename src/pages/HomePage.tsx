@@ -8,7 +8,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, FileText, ArrowRight, ShieldCheck,
   AlertCircle, ScanLine, ChevronRight,
-  ShoppingCart, QrCode, CheckCircle2,
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { ARC_TESTNET_ID } from '@/lib/contract'
@@ -85,19 +84,19 @@ export default function HomePage() {
       </div>
 
       {/* ── How it works ──────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 space-y-2.5">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">How it works</p>
-        <div className="space-y-2">
+      <div className="rounded-2xl border border-[#CBD5E1] bg-slate-50 px-4 py-3.5 space-y-2.5 shadow-sm">
+        <p className="text-xs font-semibold text-slate-600 uppercase tracking-widest">How it works</p>
+        <div className="space-y-2.5">
           {[
-            { icon: <ShoppingCart size={13} className="text-emerald-600" />, step: '1', text: 'Merchant builds the order in the Sell screen' },
-            { icon: <QrCode size={13} className="text-emerald-600" />,        step: '2', text: 'Each order gets a unique QR — customer scans and pays in USDC' },
-            { icon: <CheckCircle2 size={13} className="text-emerald-600" />,  step: '3', text: 'Payment and receipt are verified onchain — no trust required' },
-          ].map(({ icon, step, text }) => (
+            { step: '1', text: 'Merchant builds the order in the Sell screen' },
+            { step: '2', text: 'Each order gets a unique QR — customer scans and pays in USDC' },
+            { step: '3', text: 'Payment and receipt are verified onchain — no trust required' },
+          ].map(({ step, text }) => (
             <div key={step} className="flex items-center gap-3">
-              <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center shrink-0">
-                {icon}
+              <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
+                <span className="text-white text-xs font-bold leading-none">{step}</span>
               </div>
-              <p className="text-xs text-slate-600">{text}</p>
+              <p className="text-xs text-slate-700 leading-snug">{text}</p>
             </div>
           ))}
         </div>
@@ -134,8 +133,8 @@ export default function HomePage() {
       )}
 
       {/* ── Receipt / Payment lookup ──────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+      <div className="bg-white rounded-2xl border border-[#CBD5E1] shadow-sm overflow-hidden">
+        <div className="px-4 pt-4 pb-3 border-b border-[#CBD5E1]">
           <div className="flex items-center gap-2">
             <Search size={14} className="text-emerald-600" />
             <p className="text-sm font-semibold text-slate-800">Find a receipt or payment</p>
@@ -150,7 +149,7 @@ export default function HomePage() {
               onChange={e => { setInput(e.target.value); setError(null) }}
               onKeyDown={handleKey}
               placeholder="Request ID or paste a link…"
-              className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition min-w-0"
+              className="flex-1 rounded-xl border border-[#CBD5E1] bg-slate-50 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 focus:bg-white transition min-w-0"
             />
             <button
               onClick={handleLookup}
@@ -177,32 +176,32 @@ export default function HomePage() {
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={() => void navigate('/verify')}
-          className="group bg-white rounded-2xl border border-slate-200 hover:border-emerald-300 hover:shadow-sm p-4 text-left transition-all"
+          className="group bg-white rounded-2xl border border-[#CBD5E1] hover:border-emerald-400 hover:shadow-md p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           <div className="w-8 h-8 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center mb-3 transition-colors">
             <ShieldCheck size={16} className="text-emerald-600" />
           </div>
           <p className="text-sm font-semibold text-slate-800">Verify</p>
-          <p className="text-xs text-slate-400 mt-0.5">Check any request onchain</p>
+          <p className="text-xs text-slate-600 mt-0.5">Check any request onchain</p>
         </button>
 
         <button
           onClick={() => void navigate('/payments')}
-          className="group bg-white rounded-2xl border border-slate-200 hover:border-emerald-300 hover:shadow-sm p-4 text-left transition-all"
+          className="group bg-white rounded-2xl border border-[#CBD5E1] hover:border-emerald-400 hover:shadow-md p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           <div className="w-8 h-8 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center mb-3 transition-colors">
             <FileText size={16} className="text-emerald-600" />
           </div>
           <p className="text-sm font-semibold text-slate-800">My payments</p>
-          <p className="text-xs text-slate-400 mt-0.5">Payments from your wallet</p>
+          <p className="text-xs text-slate-600 mt-0.5">Payments from your wallet</p>
         </button>
       </div>
 
       {/* ── Scan hint ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3.5">
-        <ScanLine size={18} className="text-slate-400 shrink-0" />
-        <p className="text-sm text-slate-500">
-          <span className="font-medium text-slate-700">Have a QR code?</span>{' '}
+      <div className="flex items-center gap-3 rounded-2xl bg-slate-50 border border-[#CBD5E1] px-4 py-3.5">
+        <ScanLine size={18} className="text-slate-500 shrink-0" />
+        <p className="text-sm text-slate-600">
+          <span className="font-semibold text-slate-800">Have a QR code?</span>{' '}
           Scan it with your camera — it opens the payment page directly.
         </p>
       </div>

@@ -261,14 +261,14 @@ function MenuCard({
 
   if (isEditing) {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+      <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3 space-y-2 shadow-sm">
         <div className="flex gap-2">
           <input value={eEmoji} onChange={e => setEEmoji(e.target.value)}
-            className="w-10 text-center rounded-lg border border-slate-200 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="w-10 text-center rounded-lg border border-slate-300 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
             maxLength={2} placeholder="🍔"
           />
           <input value={eName} onChange={e => setEName(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
             placeholder="Item name"
           />
         </div>
@@ -276,7 +276,7 @@ function MenuCard({
           <TokenUSDC variant="branded" size={14} />
           <input type="number" min="0" step="0.01" value={ePrice}
             onChange={e => setEPrice(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
             placeholder="0.00"
           />
         </div>
@@ -291,10 +291,10 @@ function MenuCard({
               } catch { toast.error('Invalid price — enter a positive decimal number'); return }
               onEditSave(item.id, eName.trim(), ePrice.trim(), eEmoji || '🍽')
             }}
-            className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
+            className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1"
           >Save</button>
           <button onClick={onEditCancel}
-            className="flex-1 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200"
+            className="flex-1 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1"
           >Cancel</button>
         </div>
       </div>
@@ -302,39 +302,39 @@ function MenuCard({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white hover:border-emerald-200 hover:shadow-sm transition-all overflow-hidden group">
+    <div className="rounded-2xl border border-[#94A3B8] bg-white hover:border-emerald-400 hover:shadow-md transition-all overflow-hidden group shadow-sm">
       <button
         onClick={() => onAdd(item)}
-        className="w-full p-4 flex flex-col items-center gap-2 active:bg-emerald-50"
+        className="w-full p-4 flex flex-col items-center gap-2 active:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-inset"
       >
         {item.imageUrl ? (
           <img
             src={item.imageUrl}
             alt={item.name}
-            className="w-14 h-14 rounded-xl object-cover border border-slate-100"
+            className="w-14 h-14 rounded-xl object-cover border border-slate-200"
             onError={e => { (e.currentTarget).style.display = 'none' }}
           />
         ) : (
           <span className="text-3xl">{item.emoji}</span>
         )}
         <span className="font-semibold text-slate-800 text-sm">{item.name}</span>
-        <span className="text-xs text-slate-500 flex items-center gap-1">
+        <span className="text-xs text-slate-600 flex items-center gap-1 font-medium">
           <TokenUSDC variant="branded" size={12} /> {item.price} USDC
         </span>
       </button>
-      <div className="border-t border-slate-50 flex items-center justify-between px-3 py-1.5">
+      <div className="border-t border-slate-200 flex items-center justify-between px-3 py-1.5 bg-slate-50/60">
         <button
           onClick={() => onAdd(item)}
-          className="flex-1 flex items-center justify-center gap-1 text-xs text-emerald-600 font-semibold hover:bg-emerald-50 rounded-lg py-1"
+          className="flex-1 flex items-center justify-center gap-1 text-xs text-emerald-700 font-semibold hover:bg-emerald-50 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           <Plus size={12} /> Add
         </button>
         <button
           onClick={() => onEditStart(item.id)}
-          className="p-1.5 text-slate-300 hover:text-slate-500 rounded-lg hover:bg-slate-50"
+          className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"
           title="Edit item"
         >
-          <Pencil size={11} />
+          <Pencil size={12} />
         </button>
       </div>
     </div>
@@ -353,24 +353,24 @@ function CartRow({
 }) {
   const lineTotal = parseUsdc(item.price) * BigInt(item.qty)
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+    <div className="flex items-center gap-3 py-2.5 border-b border-[#CBD5E1] last:border-0">
       <span className="flex-1 text-sm text-slate-800 font-medium">{item.name}</span>
       <div className="flex items-center gap-1.5">
         <button onClick={onDec}
-          className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-          <Minus size={11} className="text-slate-600" />
+          className="w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400">
+          <Minus size={11} className="text-slate-700" />
         </button>
-        <span className="text-sm font-semibold text-slate-800 w-5 text-center">{item.qty}</span>
+        <span className="text-sm font-semibold text-slate-900 w-5 text-center tabular-nums">{item.qty}</span>
         <button onClick={onInc}
-          className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-          <Plus size={11} className="text-slate-600" />
+          className="w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400">
+          <Plus size={11} className="text-slate-700" />
         </button>
       </div>
-      <span className="text-sm text-slate-600 w-16 text-right font-mono">
-        {formatUsdc(lineTotal)} <span className="text-slate-400 text-xs">USDC</span>
+      <span className="text-sm text-slate-700 w-16 text-right font-mono tabular-nums">
+        {formatUsdc(lineTotal)} <span className="text-slate-500 text-xs">USDC</span>
       </span>
       <button onClick={onRemove}
-        className="text-slate-300 hover:text-red-400 transition-colors">
+        className="text-slate-400 hover:text-red-500 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 rounded p-0.5">
         <X size={14} />
       </button>
     </div>
@@ -889,10 +889,10 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
         {/* Menu grid */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-widest uppercase text-slate-400 flex items-center gap-1.5">
+            <p className="text-xs font-semibold tracking-widest uppercase text-slate-500 flex items-center gap-1.5">
               <UtensilsCrossed size={12} /> Menu
             </p>
-            <span className="text-xs text-slate-300">Tap to add</span>
+            <span className="text-xs text-slate-400">Tap to add</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {menu.filter(item => !item.unavailable).map(item => (
@@ -913,8 +913,8 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
             )}
           </div>
           {/* Custom amount */}
-          <div className="rounded-xl border border-dashed border-slate-200 p-3 space-y-2">
-            <p className="text-xs text-slate-400 font-medium">Custom amount</p>
+          <div className="rounded-xl border border-dashed border-[#94A3B8] p-3 space-y-2">
+            <p className="text-xs text-slate-600 font-semibold">Custom amount</p>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2">
@@ -926,11 +926,11 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
                   onChange={e => setCustomAmount(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addCustom()}
                   placeholder="0.00"
-                  className="w-full pl-8 pr-2 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="w-full pl-8 pr-2 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
                 />
               </div>
               <button onClick={addCustom}
-                className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium transition-colors flex items-center gap-1">
+                className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 text-sm font-semibold transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-emerald-400">
                 <Plus size={14} /> Add
               </button>
             </div>
@@ -940,7 +940,7 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
         {/* Cart */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-widest uppercase text-slate-400 flex items-center gap-1.5">
+            <p className="text-xs font-semibold tracking-widest uppercase text-slate-500 flex items-center gap-1.5">
               <ShoppingCart size={12} /> Cart
               {cart.length > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
@@ -957,13 +957,13 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
           </div>
 
           {cart.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
-              <ShoppingCart size={24} className="mx-auto text-slate-200 mb-2" />
-              <p className="text-xs text-slate-400">Cart is empty</p>
-              <p className="text-xs text-slate-300 mt-1">Tap menu items to add</p>
+            <div className="rounded-xl border border-dashed border-[#94A3B8] p-8 text-center">
+              <ShoppingCart size={24} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-xs text-slate-500">Cart is empty</p>
+              <p className="text-xs text-slate-400 mt-1">Tap menu items to add</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-slate-100 bg-white p-3 space-y-0">
+            <div className="rounded-xl border-2 border-[#94A3B8] bg-white p-3 space-y-0 shadow-sm">
               {cart.map((item, i) => (
                 <CartRow
                   key={i}
@@ -973,9 +973,9 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
                   onRemove={() => removeItem(i)}
                 />
               ))}
-              {/* Total */}
-              <div className="pt-3 mt-1 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">Total</span>
+              {/* Total — lightly tinted emerald row */}
+              <div className="pt-2.5 mt-1 border-t-2 border-[#CBD5E1] flex items-center justify-between bg-emerald-50/70 rounded-b-lg px-1 pb-1">
+                <span className="text-sm font-semibold text-slate-800">Total</span>
                 <span className="text-base font-bold text-emerald-700 flex items-center gap-1.5">
                   <TokenUSDC variant="branded" size={16} />
                   {formatUsdc(total)} USDC

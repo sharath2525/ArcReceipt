@@ -139,7 +139,7 @@ function PendingBanner({ hash, status, meta, onDismiss }: PendingBannerProps) {
 
   // pending
   return (
-    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 space-y-2">
+    <div className="rounded-2xl bg-slate-50 border border-[#CBD5E1] p-4 space-y-2 shadow-sm">
       <div className="flex items-center gap-2">
         <Loader2 size={16} className="animate-spin text-slate-500 shrink-0" />
         <p className="text-sm font-semibold text-slate-700">Confirming…</p>
@@ -195,13 +195,13 @@ function RequestRow({ id, req, onCancel, cancellingId, cancelStatus, onShowQr: _
     : meta
 
   return (
-    <div className="rounded-xl border border-slate-100 bg-white overflow-hidden">
+    <div className="rounded-xl border border-[#CBD5E1] bg-white overflow-hidden shadow-sm hover:border-emerald-300 transition-colors">
       <button onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors">
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-inset">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xs font-mono text-slate-400 shrink-0">#{id.toString()}</span>
+          <span className="text-xs font-mono text-slate-500 shrink-0">#{id.toString()}</span>
           <span className="font-semibold text-slate-800 text-sm">
-            {formatUsdc(req.amount)} <span className="font-normal text-slate-400 text-xs">USDC</span>
+            {formatUsdc(req.amount)} <span className="font-normal text-slate-500 text-xs">USDC</span>
           </span>
           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${displayMeta.color} ${displayMeta.bg}`}>
             {expired ? 'Expired' : displayMeta.label}
@@ -211,24 +211,24 @@ function RequestRow({ id, req, onCancel, cancellingId, cancelStatus, onShowQr: _
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 space-y-3 border-t border-slate-100 pt-3">
+        <div className="px-4 pb-4 space-y-3 border-t border-[#CBD5E1] pt-3">
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-slate-400">Merchant</span>
+              <span className="text-slate-500">Merchant</span>
               <p className="font-mono text-slate-700 mt-0.5">{formatAddr(req.merchant)}</p>
             </div>
             <div>
-              <span className="text-slate-400">Expires</span>
+              <span className="text-slate-500">Expires</span>
               <p className="text-slate-700 mt-0.5">{formatTs(req.expiresAt)}</p>
             </div>
             {req.status === 1 && (
               <>
                 <div>
-                  <span className="text-slate-400">Paid by</span>
+                  <span className="text-slate-500">Paid by</span>
                   <p className="font-mono text-slate-700 mt-0.5">{formatAddr(req.payer)}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400">Paid at</span>
+                  <span className="text-slate-500">Paid at</span>
                   <p className="text-slate-700 mt-0.5">{formatTs(req.paidAt)}</p>
                 </div>
               </>
@@ -236,26 +236,26 @@ function RequestRow({ id, req, onCancel, cancellingId, cancelStatus, onShowQr: _
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={copyLink}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400">
               {copied ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
               {copied ? 'Copied!' : 'Copy link'}
             </button>
             <button onClick={() => setShowQr(s => !s)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400">
               <QrCode size={13} /> {showQr ? 'Hide QR' : 'Show QR'}
             </button>
             {canCancel && (
               <button
                 onClick={() => onCancel(id)}
                 disabled={isThisCancelling}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-xs font-medium text-red-600 transition-colors disabled:opacity-50">
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-xs font-medium text-red-600 transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-400">
                 {isThisCancelling ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
                 Cancel
               </button>
             )}
           </div>
           {showQr && (
-            <div className="rounded-xl bg-white border border-slate-200 p-4 space-y-3">
+            <div className="rounded-xl bg-white border border-[#CBD5E1] p-4 space-y-3">
               <p className="text-xs font-semibold text-slate-600">#{id.toString()} Payment QR</p>
               <div className="flex justify-center">
                 <QRCodeSVG value={link} size={180} bgColor="#ffffff" fgColor="#0f172a" level="M" />
@@ -732,7 +732,7 @@ export function VerifyPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+      <div className="rounded-2xl border border-[#CBD5E1] bg-white p-4 space-y-3 shadow-sm">
         <p className="text-sm font-semibold text-slate-800">Verify by request ID</p>
         <div className="flex gap-2">
           <input
@@ -744,7 +744,7 @@ export function VerifyPanel() {
               }
             }}
             placeholder="Request ID…"
-            className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="flex-1 px-3 py-2.5 rounded-xl border border-[#CBD5E1] text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 placeholder:text-slate-400"
           />
           <button
             onClick={() => { try { setLookupId(BigInt(inputId)) } catch { /* invalid */ } }}

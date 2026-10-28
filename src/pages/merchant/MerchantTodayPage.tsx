@@ -88,8 +88,8 @@ function StatCard({
 }) {
   const expanded = activeDrill === id
   return (
-    <div className={`rounded-2xl border overflow-hidden ${
-      highlight ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'
+    <div className={`rounded-2xl border overflow-hidden shadow-sm ${
+      highlight ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-[#CBD5E1]'
     }`}>
       <button
         onClick={() => onToggle(id)}
@@ -118,7 +118,7 @@ function StatCard({
       </button>
 
       {expanded && (
-        <div className="border-t border-slate-100 px-3 pb-3 pt-2 space-y-1.5 max-h-72 overflow-y-auto">
+        <div className="border-t border-[#CBD5E1] px-3 pb-3 pt-2 space-y-1.5 max-h-72 overflow-y-auto">
           {children}
         </div>
       )}

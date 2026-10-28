@@ -319,21 +319,21 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
       </div>
 
       {/* Contract source of truth */}
-      <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-xs text-slate-500 space-y-1">
-        <p className="font-semibold text-slate-600 uppercase tracking-widest text-xs">Verified source</p>
+      <div className="rounded-xl bg-slate-50 border border-[#CBD5E1] p-3 text-xs text-slate-600 space-y-1.5">
+        <p className="font-semibold text-slate-700 uppercase tracking-widest text-xs">Verified source</p>
         <div className="flex justify-between">
-          <span className="text-slate-400">Contract</span>
+          <span className="text-slate-500">Contract</span>
           <a
             href={buildAddressExplorerUrl(ARC_TESTNET_ID, CONTRACT_ADDRESS)}
             target="_blank" rel="noopener noreferrer"
-            className="font-mono hover:text-slate-700 flex items-center gap-0.5"
+            className="font-mono text-slate-700 hover:text-slate-900 flex items-center gap-0.5"
           >
             {formatAddr(CONTRACT_ADDRESS)} <ExternalLink size={10} />
           </a>
         </div>
         <div className="flex justify-between">
-          <span className="text-slate-400">Chain</span>
-          <span>Arc Testnet (5042002)</span>
+          <span className="text-slate-500">Chain</span>
+          <span className="text-slate-700">Arc Testnet (5042002)</span>
         </div>
       </div>
 
@@ -341,7 +341,7 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
       <div className="flex gap-2">
         <button
           onClick={copyLink}
-          className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 rounded-xl border border-[#CBD5E1] bg-white hover:bg-slate-50 hover:border-emerald-400 text-slate-700 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           {copiedLink ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
           {copiedLink ? 'Copied!' : 'Copy link'}
@@ -349,7 +349,7 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
         {payTxHash && (
           <button
             onClick={copyTx}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
+            className="flex-1 py-2.5 rounded-xl border border-[#CBD5E1] bg-white hover:bg-slate-50 hover:border-emerald-400 text-slate-700 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
           >
             {copiedTx ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
             {copiedTx ? 'Copied!' : 'Copy TX'}
@@ -357,7 +357,7 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
         )}
         <button
           onClick={() => window.print()}
-          className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 print:hidden"
+          className="flex-1 py-2.5 rounded-xl border border-[#CBD5E1] bg-white hover:bg-slate-50 hover:border-slate-400 text-slate-700 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 print:hidden focus:outline-none focus:ring-2 focus:ring-slate-400"
         >
           <Printer size={14} /> Print
         </button>
@@ -371,14 +371,14 @@ function ReceiptRow({
 }: { label: string; value: string; mono?: boolean; href?: string }) {
   return (
     <div className="flex justify-between gap-2">
-      <span className="text-slate-400 shrink-0">{label}</span>
+      <span className="text-slate-500 shrink-0">{label}</span>
       {href ? (
         <a href={href} target="_blank" rel="noopener noreferrer"
-          className={`truncate hover:text-slate-700 flex items-center gap-0.5 ${mono ? 'font-mono' : ''}`}>
+          className={`truncate text-slate-700 hover:text-slate-900 flex items-center gap-0.5 ${mono ? 'font-mono' : ''}`}>
           {value} <ExternalLink size={10} />
         </a>
       ) : (
-        <span className={`truncate ${mono ? 'font-mono' : ''}`}>{value}</span>
+        <span className={`truncate text-slate-700 ${mono ? 'font-mono' : ''}`}>{value}</span>
       )}
     </div>
   )

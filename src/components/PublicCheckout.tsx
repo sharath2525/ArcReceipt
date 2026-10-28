@@ -593,7 +593,7 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
             <ExternalLink size={14} /> View PaymentRecorded event
           </a>
         </div>
-        <div className="rounded-xl bg-white border border-slate-100 p-3 text-xs text-slate-500 space-y-1">
+        <div className="rounded-xl bg-white border border-[#CBD5E1] p-3 text-xs text-slate-600 space-y-1.5">
           <Row label="Request" value={`#${requestId.toString()}`} mono />
           <Row label="Merchant" value={formatAddr(req.merchant)} mono />
           <Row label="Payer" value={address ? formatAddr(address) : '—'} mono />
@@ -692,8 +692,8 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+      <div className="rounded-2xl bg-white border border-[#CBD5E1] p-4 space-y-3 shadow-sm">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
           Payment request #{requestId.toString()}
         </p>
         <div className="flex items-end gap-1.5">
@@ -709,7 +709,7 @@ export function PublicCheckout({ requestId, onPaid }: PublicCheckoutProps) {
         <RequestPreviewRows req={req} requestId={requestId} />
       </div>
 
-      <div className="flex items-start gap-2 text-xs text-slate-500 bg-slate-50 rounded-xl p-3">
+      <div className="flex items-start gap-2 text-xs text-slate-600 bg-slate-50 border border-[#CBD5E1] rounded-xl p-3">
         <ShieldCheck size={14} className="shrink-0 mt-0.5 text-emerald-500" />
         <span className="text-pretty">
           Amount and recipient are read directly from the contract — not from the URL.
@@ -830,11 +830,11 @@ function RequestPreviewRows({ req, requestId }: { req: OnchainRequest; requestId
   }
 
   return (
-    <div className="text-xs text-slate-500 space-y-1.5">
+    <div className="text-xs text-slate-600 space-y-1.5">
       <Row label="Request" value={`#${requestId.toString()}`} mono />
       {/* Merchant address — full address, copyable */}
       <div className="flex justify-between gap-2 items-start">
-        <span className="text-slate-400 shrink-0">Merchant</span>
+        <span className="text-slate-500 shrink-0">Merchant</span>
         <div className="flex items-center gap-1 min-w-0">
           <span className="font-mono text-slate-600 break-all text-right">{req.merchant}</span>
           <button
@@ -851,7 +851,7 @@ function RequestPreviewRows({ req, requestId }: { req: OnchainRequest; requestId
       </div>
       {/* Live countdown — turns red/amber when under 2 minutes */}
       <div className="flex justify-between gap-2">
-        <span className="text-slate-400 shrink-0 flex items-center gap-0.5">
+        <span className="text-slate-500 shrink-0 flex items-center gap-0.5">
           <Clock size={11} /> Expires
         </span>
         <span className={urgent ? 'font-semibold text-rose-600' : ''}>
@@ -869,8 +869,8 @@ function RequestPreviewRows({ req, requestId }: { req: OnchainRequest; requestId
 function Row({ label, value, mono }: { label: React.ReactNode; value: string; mono?: boolean }) {
   return (
     <div className="flex justify-between gap-2">
-      <span className="text-slate-400 shrink-0">{label}</span>
-      <span className={`truncate ${mono ? 'font-mono' : ''}`}>{value}</span>
+      <span className="text-slate-500 shrink-0">{label}</span>
+      <span className={`truncate text-slate-700 ${mono ? 'font-mono' : ''}`}>{value}</span>
     </div>
   )
 }

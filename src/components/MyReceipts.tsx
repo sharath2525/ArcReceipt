@@ -556,7 +556,7 @@ export function MyReceipts() {
 
       {/* Scan progress */}
       {(isScanning || (!isComplete && scannedTo !== null)) && (
-        <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500 space-y-1">
+        <div className="rounded-xl bg-slate-50 border border-[#CBD5E1] p-3 text-xs text-slate-600 space-y-1">
           <div className="flex items-center gap-2">
             <Loader2 size={12} className={isScanning ? 'animate-spin text-emerald-500' : 'text-slate-400'} />
             <span className="font-medium">
@@ -705,21 +705,21 @@ function PaymentRecordRow({
   const explorerUrl = buildTxExplorerUrl(ARC_TESTNET_ID, rec.txHash)
 
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-4 space-y-2">
+    <div className="rounded-xl border border-[#CBD5E1] bg-white p-4 space-y-2 shadow-sm hover:border-emerald-300 transition-colors">
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-slate-400">#{rec.id.toString()}</span>
+            <span className="text-xs font-mono text-slate-500">#{rec.id.toString()}</span>
             <span className="text-sm font-semibold text-slate-800">
               {formatUsdc(rec.amount)}{' '}
-              <span className="text-xs font-normal text-slate-400">USDC</span>
+              <span className="text-xs font-normal text-slate-500">USDC</span>
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Merchant: <span className="font-mono">{formatAddr(rec.merchant)}</span>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Merchant: <span className="font-mono text-slate-700">{formatAddr(rec.merchant)}</span>
           </p>
           {rec.paidAt > 0n && (
-            <p className="text-xs text-slate-400">{formatTs(rec.paidAt)}</p>
+            <p className="text-xs text-slate-500">{formatTs(rec.paidAt)}</p>
           )}
         </div>
         <span className="shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium text-emerald-700 bg-emerald-50 border-emerald-200">
@@ -727,10 +727,10 @@ function PaymentRecordRow({
         </span>
       </div>
       {/* D18: receipt link + explorer link */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pt-0.5 border-t border-slate-100">
         <button
           onClick={() => onViewReceipt(rec.id)}
-          className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline font-medium"
+          className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400 rounded"
         >
           <Receipt size={11} /> View receipt
         </button>
@@ -738,7 +738,7 @@ function PaymentRecordRow({
           <a
             href={explorerUrl}
             target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:underline"
+            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 hover:underline"
           >
             <ExternalLink size={11} /> Explorer
           </a>

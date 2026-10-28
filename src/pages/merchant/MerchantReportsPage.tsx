@@ -211,7 +211,7 @@ function ScanBanner({
 
   if (isScanning) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-1.5">
+      <div className="rounded-xl border border-[#CBD5E1] bg-slate-50 px-3 py-2.5 space-y-1.5">
         <div className="flex items-center gap-2.5 text-xs text-slate-600">
           <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />
           <span className="flex-1">
@@ -250,7 +250,7 @@ function ScanBanner({
   // Scanning has not started yet or is in initial load
   return (
     <div className="space-y-1.5">
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-2 text-xs text-slate-500">
+      <div className="rounded-xl border border-[#CBD5E1] bg-slate-50 px-3 py-2.5 flex items-center gap-2 text-xs text-slate-500">
         <Loader2 size={13} className="animate-spin text-slate-400 shrink-0" />
         <span>Loading history — totals incomplete until scan finishes</span>
       </div>
@@ -277,7 +277,7 @@ function SummaryCards({
         { label: 'Payments',  value: `${p}${paid.length}`,               sub: 'Paid requests in period' },
         { label: 'Created',   value: `${p}${created.length}`,            sub: 'Orders created in period' },
       ].map(({ label, value, sub }) => (
-        <div key={label} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+        <div key={label} className="rounded-xl border border-[#CBD5E1] bg-white px-3 py-2.5">
           <p className="text-xs text-slate-400 font-medium">{label}</p>
           <p className="text-lg font-bold text-slate-900 tabular-nums"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{value}</p>
@@ -473,7 +473,7 @@ function DetailTable({
           <span>Sort by</span>
           <button
             onClick={() => { setDateFilter(d => d === 'payment' ? 'creation' : 'payment'); setPage(1) }}
-            className="px-2 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 font-medium"
+            className="px-2 py-1 rounded border border-[#CBD5E1] bg-white hover:bg-slate-50 font-medium"
             title="Toggle sort between payment date and creation date"
           >
             {dateFilter === 'payment' ? 'Payment date' : 'Creation date'}
@@ -491,7 +491,7 @@ function DetailTable({
 
       {/* Table */}
       {pageRows.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-xs text-slate-400">
+        <div className="rounded-xl border border-[#CBD5E1] bg-white p-6 text-center text-xs text-slate-400">
           {filtered.length === 0 ? 'No records match these filters.' : 'No records on this page.'}
         </div>
       ) : (
@@ -571,7 +571,7 @@ function DetailTable({
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={safePage <= 1}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white disabled:opacity-40 hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#CBD5E1] bg-white disabled:opacity-40 hover:bg-slate-50 transition-colors"
           >
             <ArrowLeft size={11} /> Prev
           </button>
@@ -579,7 +579,7 @@ function DetailTable({
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={safePage >= totalPages}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white disabled:opacity-40 hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#CBD5E1] bg-white disabled:opacity-40 hover:bg-slate-50 transition-colors"
           >
             Next <ArrowRight size={11} />
           </button>
@@ -608,7 +608,7 @@ function CustomRangePicker({ onApply }: { onApply: (from: number, to: number) =>
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+    <div className="rounded-xl border border-[#CBD5E1] bg-white p-4 space-y-3">
       <p className="text-xs font-semibold text-slate-600">Custom date range (UTC)</p>
       <div className="flex gap-2">
         <div className="flex-1 space-y-1">
@@ -719,7 +719,7 @@ function PeriodRow({
   const prefix = incomplete ? '~' : ''
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div className="rounded-xl border border-[#CBD5E1] bg-white overflow-hidden">
       <button
         onClick={() => setExpanded(e => !e)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors text-left"
@@ -975,7 +975,7 @@ export default function MerchantReportsPage() {
 
           {/* Chart — only for month views */}
           {isMonthView && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <div className="rounded-xl border border-[#CBD5E1] bg-white p-4 space-y-3">
               <p className="text-xs font-semibold tracking-widest uppercase text-slate-400">
                 Daily collections — {formatUtcMonth(activePeriodSpec.fromSecs)}
               </p>
@@ -991,13 +991,13 @@ export default function MerchantReportsPage() {
           <div className="flex items-center gap-2 flex-wrap print:hidden">
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
             >
               <Download size={13} /> Export CSV
             </button>
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
             >
               <Printer size={13} /> Print
             </button>
