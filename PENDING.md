@@ -23,19 +23,6 @@ Recommended path: Cyfrin, 0xMacro, or run Slither + Aderyn and publish reports a
 
 ---
 
-## LOW — Known limitations (by design)
-
-| ID | Limitation | Decision |
-|----|-----------|---------|
-| L2 | No delivery, loyalty, refunds | Out of scope |
-| L3 | No WhatsApp/SMS/phone collection | Out of scope |
-| L4 | Orders row update delay up to ~8s | Intentional RPC rate trade-off |
-| L5 | Receipt TX recovery slow for old payments | No indexed backend; paidAt-block estimate would help |
-| L6 | Reports "Status" shows current status, not historical | Paid is permanent terminal state — safe by design |
-| L7 | `extractIdFromReceipt` iterates all logs | Fine for single-event TX |
-
----
-
 ## MAINNET CHECKLIST (do not deploy until all checked)
 
 - [ ] C2: Independent Solidity audit completed and findings resolved
