@@ -956,3 +956,75 @@
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793208901583}
 {"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1793208923642}
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793208923642}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213733150}
+{"level":"error","message":"[vite] Failed to reload /src/components/MerchantDashboard.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213733160}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1793213733161}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213733161}
+{"level":"error","message":"[vite] Failed to reload /src/components/MyReceipts.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213733422}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213734052}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1793213734055}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213734055}
+{"level":"error","message":"[vite] Failed to reload /src/components/PublicCheckout.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213734307}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213734323}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1793213734323}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213734323}
+{"level":"error","message":"[vite] Failed to reload /src/components/PublicReceipt.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213734579}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213735249}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1793213735250}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213735251}
+{"level":"error","message":"[vite] Failed to reload /src/components/SellPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213735507}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213735510}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1793213735510}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213735510}
+{"level":"error","message":"[vite] Failed to reload /src/pages/HomePage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213735760}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213735769}
+{"level":"debug","message":"[vite] hot updated: /src/pages/HomePage.tsx","timestamp":1793213735772}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213735772}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantReportsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213736030}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213736715}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1793213736715}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213736716}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantSettingsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213736960}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213736990}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1793213736990}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213736990}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantTodayPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213737238}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213737259}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1793213737259}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213737259}
+{"level":"error","message":"[vite] Failed to reload /src/components/MerchantDashboard.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213739584}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213740354}
+{"level":"debug","message":"[vite] hot updated: /src/components/MerchantDashboard.tsx","timestamp":1793213740354}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213740354}
+{"level":"error","message":"[vite] Failed to reload /src/components/MyReceipts.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213740599}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213740645}
+{"level":"debug","message":"[vite] hot updated: /src/components/MyReceipts.tsx","timestamp":1793213740645}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213740645}
+{"level":"error","message":"[vite] Failed to reload /src/components/PublicCheckout.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213740890}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213741704}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicCheckout.tsx","timestamp":1793213741704}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213741704}
+{"level":"error","message":"[vite] Failed to reload /src/components/PublicReceipt.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213741956}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213742571}
+{"level":"debug","message":"[vite] hot updated: /src/components/PublicReceipt.tsx","timestamp":1793213742571}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213742571}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213742832}
+{"level":"error","message":"[vite] Failed to reload /src/components/SellPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213742836}
+{"level":"debug","message":"[vite] hot updated: /src/components/SellPage.tsx","timestamp":1793213742836}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213742836}
+{"level":"error","message":"[vite] Failed to reload /src/pages/HomePage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213743080}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213743083}
+{"level":"debug","message":"[vite] hot updated: /src/pages/HomePage.tsx","timestamp":1793213743084}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213743084}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantReportsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213743456}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213744204}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1793213744204}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213744204}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantSettingsPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213744492}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213744493}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantSettingsPage.tsx","timestamp":1793213744493}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213744493}
+{"level":"error","message":"[vite] Failed to reload /src/pages/merchant/MerchantTodayPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213744738}
+{"level":"error","message":"[vite] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above)","timestamp":1793213744774}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1793213744775}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793213744775}
