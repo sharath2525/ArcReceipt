@@ -28,13 +28,16 @@ ArcReceipt is a crypto point-of-sale app built on Arc — Circle's blockchain wh
 5. The smart contract stores the amount, your wallet address, and the expiry permanently onchain.
 6. A QR code appears. Show it to the customer, or copy the payment link and send it.
 
-### Customer pays
+### Customer pays — works on any phone, no app install needed
 
-1. Customer scans the QR code or opens the payment link (e.g. `https://arc-mr.vercel.app/pay/42`).
-2. The checkout page reads the amount, merchant address, and order status **directly from the contract** — not from the URL. The URL cannot be faked.
-3. Customer approves the exact USDC amount (first transaction), then pays (second transaction).
-4. USDC moves directly from the customer's wallet to the merchant's wallet. The contract never holds funds.
-5. A receipt page is generated at `/receipt/42` showing amount, merchant, payer, and timestamp — all verifiable onchain.
+1. Customer points their phone camera at the QR code. It opens `https://arc-mr.vercel.app/pay/42` directly in their mobile browser.
+2. The checkout page reads the amount, merchant address, and order status **directly from the contract** — not from the URL. The URL cannot be faked or tampered with.
+3. Customer connects their mobile wallet (MetaMask Mobile, Rabby, any WalletConnect wallet) — no app install needed, just a browser.
+4. Customer approves the exact USDC amount (first transaction), then pays (second transaction).
+5. USDC moves directly from the customer's wallet to the merchant's wallet. The contract never holds funds.
+6. A receipt page opens at `/receipt/42` showing amount, merchant, payer, and timestamp — all verifiable onchain. Customer can bookmark or share it.
+
+> **The merchant never touches the customer's phone.** The merchant shows the QR. The customer scans, connects their own wallet, and pays. This is the same UX as a QR payment at a coffee shop — except it settles in USDC on a public blockchain with no intermediary.
 
 ### Merchant sees the payment
 
