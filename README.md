@@ -1,6 +1,6 @@
 # ArcReceipt
 
-> USDC point-of-sale and receipt system for small vendors — every order has its own QR, every confirmed payment has its own verifiable onchain receipt.
+> USDC point-of-sale for small vendors — merchant creates an order, customer scans the QR on their phone and pays in USDC. No app install, no card reader, no middleman.
 
 Built with [Arc Studio](https://studio.arc.io)
 
