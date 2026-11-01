@@ -155,17 +155,9 @@ The contract is a fixed, non-upgradeable deployment. Nobody — not the deployer
 
 ## Future scope
 
-Features not built for the hackathon but planned for a production version:
-
-- **Mainnet deployment** — deploy a new contract instance to Arc Mainnet after an independent security audit; update `CONTRACT_ADDRESS` and `DEPLOYMENT_BLOCK` in source.
-- **Indexed event backend** — replace the in-browser `getLogs` scan with a lightweight indexer (e.g. Ponder, The Graph, or a simple Express + viem poller) to make My Payments and Reports instant regardless of history length.
-- **Delivery and fulfillment tracking** — add an optional off-chain fulfilment status alongside each order (no contract change needed; a signed off-chain record keyed by request ID suffices).
-- **Loyalty and rewards** — merchant-defined discount codes or repeat-customer rewards based on verified payment history.
-- **Refund flow** — merchant-initiated USDC refund via a new `refund(id)` contract method; the original amount is returned to `req.payer`.
-- **Cross-device sync** — replace browser-local cart and menu storage with an optional wallet-signed sync endpoint so the same menu loads on any device.
-- **WhatsApp / SMS receipt delivery** — post-payment webhook that sends the receipt link to a phone number collected at checkout.
-- **Multi-currency support** — accept EURC or other Circle-supported stablecoins via a token-parameter extension to `createRequest`.
-- **Receipt QR at point of sale** — print-optimised receipt page with a QR linking back to the onchain proof, suitable for thermal receipt printers.
+See [`FEATURE_SCOPE.md`](./FEATURE_SCOPE.md) for the full planned feature roadmap, organised by phase.
+Items that need a contract upgrade are clearly marked; everything else ships as frontend-only changes
+against the current deployed contract.
 
 ---
 
