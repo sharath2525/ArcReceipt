@@ -1,31 +1,85 @@
 /**
  * ArcReceiptCheckout — single source of truth for contract constants.
  *
- * Topic-0 hashes are DERIVED from the ABI at module load time using viem's
- * keccak256, not hand-copied strings. This means they can never drift from
- * the deployed contract ABI. The canonical ABI is the compiled artifact at
- * contracts/out/ArcReceiptCheckout.sol/ArcReceiptCheckout.json.
+ * ALL network-specific values are read from Vite env vars so switching
+ * testnet ↔ mainnet requires ONLY a Vercel environment variable change —
+ * zero code edits. Set these vars in your Vercel project settings:
  *
- * Chain: Arc Testnet (chainId 5042002)
- * Deployed: 2026-10-16T07:21:04.299Z
- * Deploy TX: 0xa464d3b5594a471071744763ec765283a579ffae44c890fe7b2eef5c4e8f0f45
- * Source SHA-256: 87b9c9a410ba3581358561f00ac25879d89b1f33501d03171dd6d6829d0f064b
- * forge-std: 1.16.2 (lib/forge-std/package.json)
+ *   VITE_CHAIN_ID          Chain ID as a decimal integer (e.g. 5042002 or 5042)
+ *   VITE_CONTRACT_ADDRESS  Deployed ArcReceiptCheckout address (0x…)
+ *   VITE_USDC_ADDRESS      USDC ERC-20 address for this chain (0x…)
+ *   VITE_EXPLORER_BASE     Block explorer base URL (no trailing slash)
+ *   VITE_RPC_URL           Primary JSON-RPC endpoint (optional override)
+ *   VITE_APP_ORIGIN        Public base URL for shareable links
+ *
+ * Testnet defaults are baked in so the app works in Studio preview and local
+ * dev without any env file. All defaults are Arc Testnet (5042002).
+ *
+ * Topic-0 hashes are DERIVED from the ABI at module load time using viem's
+ * keccak256 so they can never drift from the deployed contract ABI.
  */
 
 import { keccak256, toHex, type Abi, type AbiEvent } from 'viem'
 import artifact from '../../contracts/out/ArcReceiptCheckout.sol/ArcReceiptCheckout.json'
 
-export const ARC_TESTNET_ID = 5042002
+// ── Env-var readers with testnet defaults ─────────────────────────────────────
 
-export const CONTRACT_ADDRESS =
-  '0x4017d948c7a8f370f5e8d0eee6da7be2859bea18' as const
+function envStr(key: string, fallback: string): string {
+  const v = (import.meta.env as Record<string, string | undefined>)[key]
+  return v && v.trim() ? v.trim() : fallback
+}
+
+function envInt(key: string, fallback: number): number {
+  const v = (import.meta.env as Record<string, string | undefined>)[key]
+  if (!v || !v.trim()) return fallback
+  const n = parseInt(v.trim(), 10)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
+// ── Network constants — read from env, fall back to Arc Testnet ───────────────
+
+/** Chain ID — set VITE_CHAIN_ID=5042 for mainnet, leave unset for testnet. */
+export const CHAIN_ID: number = envInt('VITE_CHAIN_ID', 5042002)
+
+/** Backward-compat alias used throughout the codebase. */
+export const ARC_TESTNET_ID: number = CHAIN_ID
+
+/** Deployed contract address for this chain. */
+export const CONTRACT_ADDRESS = envStr(
+  'VITE_CONTRACT_ADDRESS',
+  '0x4017d948c7a8f370f5e8d0eee6da7be2859bea18',
+) as `0x${string}`
+
+/** USDC ERC-20 address for this chain.
+ *  Arc Testnet + Arc Mainnet both use 0x3600…0000.
+ *  Other chains have different USDC addresses — set VITE_USDC_ADDRESS. */
+export const USDC_ADDRESS = envStr(
+  'VITE_USDC_ADDRESS',
+  '0x3600000000000000000000000000000000000000',
+) as `0x${string}`
+
+/** Block explorer base URL (no trailing slash). */
+export const EXPLORER_BASE = envStr(
+  'VITE_EXPLORER_BASE',
+  'https://explorer.testnet.arc.io',
+)
+
+/** Network display label — shown in the testnet/mainnet banner. */
+export const NETWORK_LABEL: string = (() => {
+  const id = CHAIN_ID
+  if (id === 5042)    return 'Arc Mainnet'
+  if (id === 5042002) return 'Arc Testnet'
+  return `Chain ${id}`
+})()
+
+/** Whether this is a testnet (show warning banner). */
+export const IS_TESTNET: boolean = CHAIN_ID !== 5042
+
+// ── ABI ───────────────────────────────────────────────────────────────────────
 
 export const CONTRACT_ABI = artifact.abi as Abi
 
 // ── Topic-0 derivation from ABI ───────────────────────────────────────────────
-// Signature strings are constructed from the ABI, then hashed with keccak256.
-// If the ABI changes, these values update automatically.
 
 function abiEventSig(name: string, types: string[]): string {
   return `${name}(${types.join(',')})`
@@ -35,7 +89,6 @@ function topic0(sig: string): `0x${string}` {
   return keccak256(toHex(sig))
 }
 
-// Locate events by name from the artifact ABI for type-safety
 function findEvent(name: string): AbiEvent {
   const ev = (artifact.abi as Abi).find(
     (x): x is AbiEvent => x.type === 'event' && x.name === name
@@ -50,21 +103,10 @@ function eventTopic0(name: string): `0x${string}` {
   return topic0(abiEventSig(name, types))
 }
 
-/**
- * keccak256("RequestCreated(uint256,address,uint256,uint256)")
- * Derived from artifact ABI at module load time.
- * topics[1]=id (indexed), topics[2]=merchant (indexed)
- */
 export const REQUEST_CREATED_TOPIC: `0x${string}` = eventTopic0('RequestCreated')
-
-/**
- * keccak256("PaymentRecorded(uint256,address,address,uint256,uint256)")
- * Derived from artifact ABI at module load time.
- * topics[1]=id (indexed), topics[2]=merchant (indexed), topics[3]=payer (indexed)
- */
 export const PAYMENT_RECORDED_TOPIC: `0x${string}` = eventTopic0('PaymentRecorded')
 
-// Status enum mirroring Solidity enum RequestStatus { Open, Paid, Cancelled }
+// Status enum
 export const STATUS_OPEN = 0
 export const STATUS_PAID = 1
 export const STATUS_CANCELLED = 2
@@ -78,9 +120,7 @@ export interface OnchainRequest {
   paidAt: bigint
 }
 
-/** Extract the request ID from a CreateRequest receipt log.
- *  Handles wagmi v2 Log objects where topics are `readonly (Hex | null)[]`.
- *  Comparison is lowercase to avoid 0x/0X casing mismatches. */
+/** Extract the request ID from a CreateRequest receipt log. */
 export function extractIdFromReceipt(
   receipt: { logs: Array<{ address: string; topics: readonly (string | null)[] }> }
 ): bigint | null {
@@ -95,12 +135,17 @@ export function extractIdFromReceipt(
   return idTopic ? BigInt(idTopic) : null
 }
 
-/**
- * The public base URL for shareable links.
- * Reads VITE_APP_ORIGIN at build time (set in .env for public deployments).
- * Falls back to window.location.origin — which in Studio preview is the
- * restricted preview URL, so always set VITE_APP_ORIGIN before deploying.
- */
+/** Build a block-explorer TX link. */
+export function buildTxExplorerUrl(txHash: string): string {
+  return `${EXPLORER_BASE}/tx/${txHash}`
+}
+
+/** Build a block-explorer address link. */
+export function buildAddressExplorerUrl(address: string): string {
+  return `${EXPLORER_BASE}/address/${address}`
+}
+
+/** Public base URL for shareable links. */
 function publicOrigin(): string {
   const env = import.meta.env.VITE_APP_ORIGIN as string | undefined
   if (env && env.trim()) return env.trim().replace(/\/$/, '')
@@ -108,18 +153,10 @@ function publicOrigin(): string {
   return ''
 }
 
-/** Build a shareable payment link for a given request ID.
- *  Produces the canonical path-based URL /pay/:id.
- *  Legacy query-string URLs (?request=N) are still handled by LegacyRedirect
- *  for backward compatibility with printed QR codes, but all new links use
- *  the path-based form so the customer checkout and legacy redirect are
- *  both exercised correctly.
- */
 export function buildPaymentLink(id: bigint | number | string): string {
   return `${publicOrigin()}/pay/${id}`
 }
 
-/** Build a receipt/verify link. Produces the canonical path-based URL /receipt/:id. */
 export function buildReceiptLink(id: bigint | number | string): string {
   return `${publicOrigin()}/receipt/${id}`
 }

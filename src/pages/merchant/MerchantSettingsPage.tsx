@@ -20,7 +20,7 @@ import {
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
 import { MERCHANT_ADDRESSES } from '@/lib/merchant'
-import { ARC_TESTNET_CHAIN_ID } from '@/onchain-facts'
+import { CHAIN_ID as ARC_TESTNET_CHAIN_ID } from '@/onchain-facts'
 import { CONTRACT_ADDRESS, ARC_TESTNET_ID } from '@/lib/contract'
 import { parseUsdc } from '@/onchain-money'
 

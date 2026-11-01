@@ -660,14 +660,14 @@ export function useEventHistory(merchant: `0x${string}` | null): EventHistorySta
           try {
             const [createdResult, paymentResult] = await Promise.allSettled([
               publicClient.getLogs({
-                address: CONTRACT_ADDRESS as `0x${string}`,
+                address: CONTRACT_ADDRESS,
                 event: REQUEST_CREATED_ABI,
                 args: { merchant: m },
                 fromBlock: currentFrom,
                 toBlock: currentTo,
               }),
               publicClient.getLogs({
-                address: CONTRACT_ADDRESS as `0x${string}`,
+                address: CONTRACT_ADDRESS,
                 event: PAYMENT_RECORDED_ABI,
                 args: { merchant: m },
                 fromBlock: currentFrom,

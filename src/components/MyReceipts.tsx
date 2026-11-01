@@ -261,7 +261,7 @@ export function MyReceipts() {
 
           try {
             const logs = await publicClient.getLogs({
-              address: CONTRACT_ADDRESS as `0x${string}`,
+              address: CONTRACT_ADDRESS,
               event: PAYMENT_RECORDED_ABI,
               args: { payer },
               fromBlock: from,

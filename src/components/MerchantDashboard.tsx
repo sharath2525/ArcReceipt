@@ -34,7 +34,7 @@ import {
 import { buildTxExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
 import {
-  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
+  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID, CHAIN_ID,
   extractIdFromReceipt, buildPaymentLink, type OnchainRequest,
 } from '@/lib/contract'
 import { formatAddr, formatTs, statusMeta, isExpired } from '@/lib/ui'
@@ -74,7 +74,7 @@ interface PendingBannerProps {
 }
 
 function PendingBanner({ hash, status, meta, onDismiss }: PendingBannerProps) {
-  const explorerUrl = buildTxExplorerUrl(ARC_TESTNET_ID, hash)
+  const explorerUrl = buildTxExplorerUrl(hash)
   const shortHash = `${hash.slice(0, 10)}…${hash.slice(-6)}`
 
   if (status === 'success') {
@@ -296,11 +296,7 @@ function RequestRowWithData({ id, onCancel, cancellingId, cancelStatus, statusFi
   const { data: rawReq, isLoading, error, refetch } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI,
     functionName: 'getRequest', args: [id],
-    chainId: ARC_TESTNET_ID,
-    // Stage 1 fix: staleTime reduced to 5 s so rows update promptly when
-    // another browser pays this request. Combined with refetchInterval: 8_000
-    // this ensures paid status propagates within ~5-8 s without overwhelming
-    // the RPC when many rows are mounted.
+    chainId: CHAIN_ID,
     query: { staleTime: 5_000, refetchInterval: 8_000, refetchOnMount: true },
   })
   const req = rawReq as OnchainRequest | undefined
@@ -348,7 +344,7 @@ function usePaginatedIds(address: `0x${string}` | undefined) {
       address: CONTRACT_ADDRESS, abi: CONTRACT_ABI,
       functionName: 'getMerchantRequests',
       args: address ? [address, 0n, 0n] : undefined,
-      chainId: ARC_TESTNET_ID,
+      chainId: CHAIN_ID,
       query: { enabled: !!address, staleTime: 0, refetchInterval: 4_000 },
     })
 
@@ -360,11 +356,11 @@ function usePaginatedIds(address: `0x${string}` | undefined) {
   const pageContracts = useMemo(() => {
     if (!address || pageCount === 0) return []
     return Array.from({ length: pageCount }, (_, i) => ({
-      address: CONTRACT_ADDRESS as `0x${string}`,
+      address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
       functionName: 'getMerchantRequests' as const,
       args: [address, BigInt(i) * PAGE_SIZE, PAGE_SIZE] as [string, bigint, bigint],
-      chainId: ARC_TESTNET_ID,
+      chainId: CHAIN_ID,
     }))
   }, [address, pageCount])
 
@@ -410,7 +406,7 @@ type StatusFilter = 'all' | 'open' | 'paid' | 'expired' | 'cancelled'
 // MerchantDashboard is now orders-only. The mode prop is kept for backward
 // compatibility but 'sell' is no longer rendered. Default changed to 'orders'.
 export function MerchantDashboard({
-  onNavigateToOrder: _onNavigateToOrder,
+  onNavigateToOrder,
 }: {
   onNavigateToOrder?: (id: bigint) => void
 }) {
@@ -714,6 +710,7 @@ export function MerchantDashboard({
                 cancellingId={cancellingId}
                 cancelStatus={cancelStatus}
                 statusFilter={statusFilter}
+                onShowQr={onNavigateToOrder}
               />
             ))}
           </>

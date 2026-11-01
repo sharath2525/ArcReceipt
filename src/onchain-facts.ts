@@ -1,33 +1,50 @@
 /**
- * onchain-facts — self-contained replacements for Arc Studio's injected helpers.
- * These values are hardcoded for Arc Testnet (chainId 5042002).
- * No Arc Studio runtime dependency — works in any build environment.
+ * onchain-facts — re-exports from contract.ts so all network values
+ * come from a single env-var-driven source.
  *
- * Arc Testnet facts (source: viem/chains arcTestnet + Arc docs):
- *   Chain ID:        5042002
- *   Explorer:        https://explorer.testnet.arc.io
- *   USDC ERC-20:     0x3600000000000000000000000000000000000000
- *   USDC decimals:   6  (ERC-20 view)
- *   Native decimals: 18 (gas view — same asset, different scale)
+ * Switch networks by changing env vars in Vercel — no code changes.
+ *
+ * buildTxExplorerUrl / buildAddressExplorerUrl accept an optional leading
+ * chainId arg for backward compatibility with existing callers; it is ignored
+ * because the explorer base URL is already set from the env var.
  */
 
-export const ARC_TESTNET_CHAIN_ID = 5042002
-export const ARC_EXPLORER_BASE = 'https://explorer.testnet.arc.io'
+export {
+  CHAIN_ID,
+  ARC_TESTNET_ID,
+  EXPLORER_BASE,
+  USDC_ADDRESS,
+  IS_TESTNET,
+  NETWORK_LABEL,
+} from '@/lib/contract'
 
-/** Build a block-explorer TX link for Arc Testnet. */
-export function buildTxExplorerUrl(_chainId: number, txHash: string): string {
-  return `${ARC_EXPLORER_BASE}/tx/${txHash}`
+import {
+  EXPLORER_BASE,
+  USDC_ADDRESS,
+  buildPaymentLink as _buildPaymentLink,
+  buildReceiptLink as _buildReceiptLink,
+} from '@/lib/contract'
+
+export { _buildPaymentLink as buildPaymentLink, _buildReceiptLink as buildReceiptLink }
+
+/** Build a block-explorer TX link.
+ *  Accepts optional leading chainId for backward compatibility — ignored. */
+export function buildTxExplorerUrl(_chainIdOrHash: number | string, txHashMaybe?: string): string {
+  const txHash = txHashMaybe ?? (_chainIdOrHash as string)
+  return `${EXPLORER_BASE}/tx/${txHash}`
 }
 
-/** Build a block-explorer address link for Arc Testnet. */
-export function buildAddressExplorerUrl(_chainId: number, address: string): string {
-  return `${ARC_EXPLORER_BASE}/address/${address}`
+/** Build a block-explorer address link.
+ *  Accepts optional leading chainId for backward compatibility — ignored. */
+export function buildAddressExplorerUrl(_chainIdOrAddress: number | string, addrMaybe?: string): string {
+  const addr = addrMaybe ?? (_chainIdOrAddress as string)
+  return `${EXPLORER_BASE}/address/${addr}`
 }
 
-/** USDC ERC-20 descriptor for Arc Testnet. */
-export function getUsdc(_chainId: number) {
+/** USDC ERC-20 descriptor for the active chain. */
+export function getUsdc(_chainId?: number) {
   return {
-    address: '0x3600000000000000000000000000000000000000' as `0x${string}`,
+    address: USDC_ADDRESS,
     decimals: 6,
     symbol: 'USDC',
   }

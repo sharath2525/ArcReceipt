@@ -50,7 +50,7 @@ import {
   CONTRACT_ADDRESS,
   buildReceiptLink,
 } from '@/lib/contract'
-import { ARC_EXPLORER_BASE } from '@/onchain-facts'
+import { EXPLORER_BASE as ARC_EXPLORER_BASE } from '@/onchain-facts'
 import type { CreatedEvent, PaymentEvent, ScanMode } from '@/lib/use-event-history'
 import type { OnchainRequest } from '@/lib/contract'
 

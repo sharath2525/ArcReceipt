@@ -27,7 +27,7 @@
  *   - Request IDs were validated through Number() before BigInt, which
  *     overflows for large IDs. Validation now uses BigInt directly.
  */
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import {
   Receipt, ShoppingBag, ClipboardList, FileText, Search, FlaskConical,
@@ -183,10 +183,16 @@ export default function ArcReceiptApp() {
 
   return (
     <div className="min-h-dvh bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 flex flex-col">
-      {/* Testnet banner */}
-      <div className="w-full bg-amber-400 text-amber-900 text-center text-xs font-semibold py-1.5 px-4 tracking-wide">
-        ⚠ TESTNET — Arc Testnet (chain 5042002) — No real funds
-      </div>
+      {/* Network banner — amber for testnet, green for mainnet */}
+      {IS_TESTNET ? (
+        <div className="w-full bg-amber-400 text-amber-900 text-center text-xs font-semibold py-1.5 px-4 tracking-wide">
+          ⚠ TESTNET — {NETWORK_LABEL} (chain {CHAIN_ID}) — No real funds
+        </div>
+      ) : (
+        <div className="w-full bg-emerald-600 text-white text-center text-xs font-semibold py-1.5 px-4 tracking-wide">
+          {NETWORK_LABEL} (chain {CHAIN_ID})
+        </div>
+      )}
 
       {/* Header */}
       <header className="px-4 pt-5 pb-3 flex items-center justify-between max-w-2xl mx-auto w-full">
@@ -201,7 +207,7 @@ export default function ArcReceiptApp() {
             <h1 className="text-sm font-bold text-slate-900 leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
               ArcReceipt
             </h1>
-            <p className="text-xs text-slate-400 leading-tight">Checkout on Arc Testnet</p>
+            <p className="text-xs text-slate-400 leading-tight">Checkout on {NETWORK_LABEL}</p>
           </div>
         </button>
         <ConnectKitButton />
@@ -287,7 +293,7 @@ export default function ArcReceiptApp() {
 
       {/* Footer */}
       <footer className="max-w-2xl mx-auto w-full px-4 pb-4 text-center">
-        <p className="text-xs text-slate-300">Built with Arc Studio · Arc Testnet · Not audited</p>
+        <p className="text-xs text-slate-300">Built with Arc Studio · {NETWORK_LABEL} · Not audited</p>
       </footer>
     </div>
   )
@@ -305,7 +311,8 @@ import {
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import {
-  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
+  CONTRACT_ADDRESS, CONTRACT_ABI, CHAIN_ID,
+  IS_TESTNET, NETWORK_LABEL,
   buildPaymentLink, buildReceiptLink, type OnchainRequest,
 } from '@/lib/contract'
 import { formatUsdc } from '@/onchain-money'
@@ -319,12 +326,17 @@ function MerchantOrderView({
   onNavigate: (r: Route) => void
 }) {
   const [copied, setCopied] = useState(false)
-  const { data: rawReq, isLoading, error, refetch } = useReadContract({
+  const { data: rawReq, isLoading, isError: loadError, refetch } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI,
     functionName: 'getRequest', args: [requestId],
-    chainId: ARC_TESTNET_ID,
-    query: { refetchInterval: 5_000 },
+    chainId: CHAIN_ID,
+    query: {
+      refetchInterval: 5_000,
+      retry: 2,
+      retryDelay: 1_000,
+    },
   })
+  const error = loadError
   const req = rawReq as OnchainRequest | undefined
 
   const paymentLink = buildPaymentLink(requestId)
@@ -336,6 +348,20 @@ function MerchantOrderView({
     })
   }, [paymentLink])
 
+  // After 8 s of loading, surface a Retry rather than an infinite spinner.
+  // Using a ref+state pair avoids set-state-in-effect for the reset path:
+  // the timeout callback sets state from outside React's render cycle.
+  const [loadTimedOut, setLoadTimedOut] = useState(false)
+  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (loadTimerRef.current) { clearTimeout(loadTimerRef.current); loadTimerRef.current = null }
+    if (!isLoading) return
+    loadTimerRef.current = setTimeout(() => setLoadTimedOut(true), 8_000)
+    return () => {
+      if (loadTimerRef.current) { clearTimeout(loadTimerRef.current); loadTimerRef.current = null }
+    }
+  }, [isLoading])
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -346,11 +372,29 @@ function MerchantOrderView({
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
             Order #{requestId.toString()}
           </p>
-          <div className="flex items-center gap-2 text-slate-400">
-            <Loader2 size={16} className="animate-spin text-emerald-500" />
-            <span className="text-sm">Loading verified details from Arc Testnet…</span>
-          </div>
-          <div className="h-4 rounded bg-slate-100 animate-pulse w-2/3" />
+          {loadTimedOut ? (
+            <>
+              <div className="flex items-start gap-2">
+                <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-sm text-slate-600">
+                  Unable to verify order #{requestId.toString()} right now.
+                  The RPC may be slow — your order has not changed.
+                </p>
+              </div>
+              <button onClick={() => { setLoadTimedOut(false); void refetch() }}
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold">
+                Retry
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-slate-400">
+                <Loader2 size={16} className="animate-spin text-emerald-500" />
+                <span className="text-sm">Loading verified details from {NETWORK_LABEL}…</span>
+              </div>
+              <div className="h-4 rounded bg-slate-100 animate-pulse w-2/3" />
+            </>
+          )}
         </div>
       </div>
     )

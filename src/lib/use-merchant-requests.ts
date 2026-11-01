@@ -79,7 +79,7 @@ export function useMerchantAllRequests(merchant: `0x${string}` | null) {
   const pageContracts = useMemo(() => {
     if (!merchant || pageCount === 0) return []
     return Array.from({ length: pageCount }, (_, i) => ({
-      address: CONTRACT_ADDRESS as `0x${string}`,
+      address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
       functionName: 'getMerchantRequests' as const,
       args: [merchant, BigInt(i) * PAGE_SIZE, PAGE_SIZE] as [`0x${string}`, bigint, bigint],
@@ -115,7 +115,7 @@ export function useMerchantAllRequests(merchant: `0x${string}` | null) {
   // Step 3: status reads, also at the reference block
   const statusContracts = useMemo(
     () => allIds.map(id => ({
-      address: CONTRACT_ADDRESS as `0x${string}`,
+      address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
       functionName: 'getRequest' as const,
       args: [id] as [bigint],
