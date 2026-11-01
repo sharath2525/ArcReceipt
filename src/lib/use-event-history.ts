@@ -51,9 +51,9 @@ import { useState, useEffect, useRef, useCallback, startTransition } from 'react
 import { usePublicClient } from 'wagmi'
 import { parseAbiItem } from 'viem'
 import {
-  CONTRACT_ADDRESS, ARC_TESTNET_ID,
+  CONTRACT_ADDRESS, CHAIN_ID,
 } from '@/lib/contract'
-import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
+import { ACTIVE_DEPLOYMENT } from '@/lib/deployment'
 import { MERCHANT_ADDRESS } from '@/lib/merchant'
 
 // ── ABI event items (typed) ───────────────────────────────────────────────────
@@ -97,7 +97,7 @@ interface TypedPaymentLog {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DEPLOYMENT_BLOCK: bigint = ARC_TESTNET_DEPLOYMENT.block
+const DEPLOYMENT_BLOCK: bigint = ACTIVE_DEPLOYMENT.block
 
 /**
  * Arc Testnet ~2 blocks/second.
@@ -190,7 +190,7 @@ export interface EventHistoryState {
 // ── Storage helpers ───────────────────────────────────────────────────────────
 
 function storageKey(merchant: string): string {
-  return `arc-event-history-v${CACHE_VERSION}:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${merchant.toLowerCase()}`
+  return `arc-event-history-v${CACHE_VERSION}:${CHAIN_ID}:${CONTRACT_ADDRESS}:${merchant.toLowerCase()}`
 }
 
 /** Evict older cache versions. */
@@ -198,7 +198,7 @@ function evictOldCache(merchant: string): void {
   for (const v of [1, 2]) {
     try {
       sessionStorage.removeItem(
-        `arc-event-history-v${v}:${ARC_TESTNET_ID}:${CONTRACT_ADDRESS}:${merchant.toLowerCase()}`
+        `arc-event-history-v${v}:${CHAIN_ID}:${CONTRACT_ADDRESS}:${merchant.toLowerCase()}`
       )
     } catch { /* ignore */ }
   }
@@ -400,7 +400,7 @@ async function pLimit<T>(
 // ── Main hook ─────────────────────────────────────────────────────────────────
 
 export function useEventHistory(merchant: `0x${string}` | null): EventHistoryState {
-  const publicClient = usePublicClient({ chainId: ARC_TESTNET_ID })
+  const publicClient = usePublicClient({ chainId: CHAIN_ID })
 
   const stateRef = useRef<{
     createdEvents: CreatedEvent[]

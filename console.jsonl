@@ -1034,3 +1034,8 @@
 {"level":"debug","message":"[vite] connected.","timestamp":1793564942480}
 {"level":"error","message":"Uncaught ReferenceError: artifact is not defined","timestamp":1793565049501,"source":"https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/lib/contract.ts?t=1793565042448:49:14","stack":"ReferenceError: artifact is not defined\n    at findEvent (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/lib/contract.ts?t=1793565042448:49:14)\n    at eventTopic0 (https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/lib/contract.ts?t=1793565042448:56:14)\n    at https://iiq2ilu3ols08pdlhd8tl.preview.studio.arc.io/src/lib/contract.ts?t=1793565042448:60:38"}
 {"level":"debug","message":"[vite] connected.","timestamp":1793565186390}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793566235884}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantTodayPage.tsx","timestamp":1793566235884}
+{"level":"debug","message":"[vite] hot updated: /src/pages/merchant/MerchantReportsPage.tsx","timestamp":1793566235884}
+{"level":"debug","message":"[vite] hot updated: /src/pages/HomePage.tsx","timestamp":1793566244646}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793566244646}

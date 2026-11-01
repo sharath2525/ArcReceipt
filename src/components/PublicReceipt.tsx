@@ -22,17 +22,17 @@ import { TokenUSDC } from '@web3icons/react'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
 import {
-  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
+  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID, CHAIN_ID, NETWORK_LABEL,
   PAYMENT_RECORDED_TOPIC, type OnchainRequest,
 } from '@/lib/contract'
-import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
+import { ACTIVE_DEPLOYMENT } from '@/lib/deployment'
 import { formatAddr, formatTs, isExpired } from '@/lib/ui'
 
 const PAYMENT_RECORDED_ABI = parseAbiItem(
   'event PaymentRecorded(uint256 indexed id, address indexed merchant, address indexed payer, uint256 amount, uint256 paidAt)'
 )
 
-const DEPLOYMENT_BLOCK = ARC_TESTNET_DEPLOYMENT.block
+const DEPLOYMENT_BLOCK = ACTIVE_DEPLOYMENT.block
 const RECOVERY_CHUNK = 10_000n
 
 interface PublicReceiptProps {
@@ -333,7 +333,7 @@ export function PublicReceipt({ requestId, payTxHash: hintTxHash }: PublicReceip
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Chain</span>
-          <span className="text-slate-700">Arc Testnet (5042002)</span>
+          <span className="text-slate-700">{NETWORK_LABEL} (chain {CHAIN_ID})</span>
         </div>
       </div>
 

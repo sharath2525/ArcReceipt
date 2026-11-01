@@ -40,12 +40,12 @@ import {
 import { buildTxExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
 import {
-  CONTRACT_ADDRESS, ARC_TESTNET_ID,
+  CONTRACT_ADDRESS, ARC_TESTNET_ID, CHAIN_ID, NETWORK_LABEL,
 } from '@/lib/contract'
-import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
+import { ACTIVE_DEPLOYMENT } from '@/lib/deployment'
 import { formatAddr, formatTs } from '@/lib/ui'
 
-const DEPLOYMENT_BLOCK = ARC_TESTNET_DEPLOYMENT.block
+const DEPLOYMENT_BLOCK = ACTIVE_DEPLOYMENT.block
 
 /**
  * Arc Testnet hard limit: 10,000 blocks per eth_getLogs call (error -32012).
@@ -519,7 +519,7 @@ export function MyReceipts() {
   if (chainId !== ARC_TESTNET_ID) {
     return (
       <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-center text-sm text-amber-700">
-        Switch to Arc Testnet (5042002) to view your receipts.
+        Switch to {NETWORK_LABEL} (chain {CHAIN_ID}) to view your receipts.
       </div>
     )
   }

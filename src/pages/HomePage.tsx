@@ -10,7 +10,7 @@ import {
   AlertCircle, ScanLine, ChevronRight,
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
-import { ARC_TESTNET_ID } from '@/lib/contract'
+import { CHAIN_ID, NETWORK_LABEL } from '@/lib/contract'
 
 // ── URL / ID parser ───────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ export default function HomePage() {
           USDC payments on Arc Testnet — every receipt verified onchain.
         </p>
         <span className="inline-block text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-0.5 font-medium">
-          Arc Testnet · Chain {ARC_TESTNET_ID} · USDC
+          {NETWORK_LABEL} · Chain {CHAIN_ID} · USDC
         </span>
       </div>
 

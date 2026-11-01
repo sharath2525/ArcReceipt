@@ -12,7 +12,10 @@
  * Chain: Arc Testnet (5042002)
  */
 
-import { ARC_TESTNET_ID } from '@/lib/contract'
+import { CHAIN_ID, CONTRACT_ADDRESS } from '@/lib/contract'
+
+// Keep ARC_TESTNET_ID alias for backward compatibility
+const ARC_TESTNET_ID = 5042002
 
 export interface DeploymentRecord {
   chainId: number
@@ -43,6 +46,27 @@ export const ARC_TESTNET_DEPLOYMENT: DeploymentRecord = {
 }
 
 /**
+ * Verified deployment record for ArcReceiptCheckout on Arc Mainnet.
+ * Block 29,042,942 confirmed from deploy TX receipt:
+ *   0xd877af355ba9012488063e1bb895776a849d2236f9c1ba64946f884b8f69ea3b
+ * Deployed 2026-11-01.
+ */
+export const ARC_MAINNET_DEPLOYMENT: DeploymentRecord = {
+  chainId: 5042,
+  contractAddress: '0x1dABA388EaC463C8C138f23f6D0aC0807d6b6e8C',
+  txHash: '0xd877af355ba9012488063e1bb895776a849d2236f9c1ba64946f884b8f69ea3b',
+  block: 29_042_942n,
+  deployedAt: '2026-11-01T00:00:00.000Z',
+}
+
+/**
+ * Active deployment — picks the right record based on current CHAIN_ID env var.
+ * Falls back to testnet if chain is unknown.
+ */
+export const ACTIVE_DEPLOYMENT: DeploymentRecord =
+  CHAIN_ID === 5042 ? ARC_MAINNET_DEPLOYMENT : ARC_TESTNET_DEPLOYMENT
+
+/**
  * Returns the deployment record for the given chain+contract pair, or null
  * if the chain is not supported. Always verify the returned record matches
  * the contract address in use before scanning.
@@ -52,10 +76,22 @@ export function getDeploymentRecord(
   contractAddress: string
 ): DeploymentRecord | null {
   if (
+    chainId === ARC_MAINNET_DEPLOYMENT.chainId &&
+    contractAddress.toLowerCase() === ARC_MAINNET_DEPLOYMENT.contractAddress.toLowerCase()
+  ) {
+    return ARC_MAINNET_DEPLOYMENT
+  }
+  if (
     chainId === ARC_TESTNET_DEPLOYMENT.chainId &&
     contractAddress.toLowerCase() === ARC_TESTNET_DEPLOYMENT.contractAddress.toLowerCase()
   ) {
     return ARC_TESTNET_DEPLOYMENT
+  }
+  // Fallback: use active deployment so unknown addresses still scan correctly
+  if (chainId === CHAIN_ID &&
+    contractAddress.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()
+  ) {
+    return ACTIVE_DEPLOYMENT
   }
   return null
 }

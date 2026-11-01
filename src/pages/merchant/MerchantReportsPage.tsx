@@ -37,7 +37,7 @@ import {
 } from 'lucide-react'
 import { useEventHistory } from '@/lib/use-event-history'
 import { useMerchantAllRequests } from '@/lib/use-merchant-requests'
-import { ARC_TESTNET_DEPLOYMENT } from '@/lib/deployment'
+import { ACTIVE_DEPLOYMENT } from '@/lib/deployment'
 import {
   thisMonthUtcStart, dayStartUtc, nextDayStartUtc,
   nextMonthStartUtc, previousMonthStart,
@@ -47,7 +47,7 @@ import {
 import { formatUsdc } from '@/onchain-money'
 import { MERCHANT_ADDRESS } from '@/lib/merchant'
 import {
-  CONTRACT_ADDRESS,
+  CONTRACT_ADDRESS, CHAIN_ID, NETWORK_LABEL,
   buildReceiptLink,
 } from '@/lib/contract'
 import { EXPLORER_BASE as ARC_EXPLORER_BASE } from '@/onchain-facts'
@@ -179,7 +179,7 @@ function ScanBanner({
     showFullWarning ? (
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-amber-600">
-          Scans from block {ARC_TESTNET_DEPLOYMENT.block.toString()} to head — may take several minutes.
+          Scans from block {ACTIVE_DEPLOYMENT.block.toString()} to head — may take several minutes.
         </span>
         <button onClick={() => { setShowFullWarning(false); onRescanFull() }}
           className="text-rose-600 font-medium hover:underline text-xs">Yes, scan all</button>
@@ -647,7 +647,7 @@ function buildCsvContent(
   // Header block
   lines.push(csvRow(['ArcReceipt — Payment Report']))
   lines.push(csvRow(['Merchant', merchant]))
-  lines.push(csvRow(['Network', 'Arc Testnet (Chain 5042002)']))
+  lines.push(csvRow(['Network', `${NETWORK_LABEL} (Chain ${CHAIN_ID})`]))
   lines.push(csvRow(['Contract', CONTRACT_ADDRESS]))
   lines.push(csvRow(['Period (UTC)', periodLabel]))
   lines.push(csvRow(['From (UTC)', fmtUtcFull(fromSecs)]))
@@ -921,7 +921,7 @@ export default function MerchantReportsPage() {
       <div className="hidden print:block space-y-1 mb-4 border-b pb-4">
         <h1 className="text-xl font-bold">ArcReceipt — Payment Report</h1>
         <p className="text-sm text-slate-600">Merchant: {merchant}</p>
-        <p className="text-sm text-slate-600">Network: Arc Testnet (Chain 5042002) · Contract: {CONTRACT_ADDRESS}</p>
+        <p className="text-sm text-slate-600">Network: {NETWORK_LABEL} (Chain {CHAIN_ID}) · Contract: {CONTRACT_ADDRESS}</p>
         <p className="text-sm text-slate-600">Period: {activePeriodSpec?.label} · Generated: {isoUtc()}</p>
         <p className="text-sm text-slate-600">Verified through block: {scanProgress.headBlock.toString()}</p>
         <p className={`text-sm font-semibold ${isIncomplete ? 'text-amber-600' : 'text-emerald-600'}`}>

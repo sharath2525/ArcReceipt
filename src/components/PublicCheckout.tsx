@@ -41,7 +41,7 @@ import {
 import { buildTxExplorerUrl, getUsdc } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
 import {
-  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID, PAYMENT_RECORDED_TOPIC,
+  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID, CHAIN_ID, NETWORK_LABEL, PAYMENT_RECORDED_TOPIC,
   type OnchainRequest,
 } from '@/lib/contract'
 import { formatAddr, formatTs, isExpired } from '@/lib/ui'
@@ -861,7 +861,7 @@ function RequestPreviewRows({ req, requestId }: { req: OnchainRequest; requestId
           </span>
         </span>
       </div>
-      <Row label="Network" value="Arc Testnet (5042002)" />
+      <Row label="Network" value={`${NETWORK_LABEL} (chain ${CHAIN_ID})`} />
     </div>
   )
 }

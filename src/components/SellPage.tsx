@@ -33,7 +33,7 @@ import {
 import { parseUsdc, formatUsdc } from '@/onchain-money'
 import { buildTxExplorerUrl } from '@/onchain-facts'
 import {
-  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID,
+  CONTRACT_ADDRESS, CONTRACT_ABI, ARC_TESTNET_ID, CHAIN_ID, NETWORK_LABEL,
   extractIdFromReceipt, buildPaymentLink, buildReceiptLink,
 } from '@/lib/contract'
 import { savePendingTx, loadPendingTx, clearPendingTx } from '@/lib/pending-tx'
@@ -809,7 +809,7 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Network</span>
-              <span className="text-slate-700">Arc Testnet (5042002)</span>
+              <span className="text-slate-700">{NETWORK_LABEL} (chain {CHAIN_ID})</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Merchant</span>
@@ -832,7 +832,7 @@ export function SellPage({ onOrderCreated }: SellPageProps) {
           ) : chainId !== ARC_TESTNET_ID ? (
             <button onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}
               className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
-              <AlertCircle size={16} /> Switch to Arc Testnet
+              <AlertCircle size={16} /> Switch to {NETWORK_LABEL}
             </button>
           ) : (
             <button
