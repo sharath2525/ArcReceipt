@@ -20,7 +20,12 @@
  */
 
 import { keccak256, toHex, type Abi, type AbiEvent } from 'viem'
-import artifact from '../../contracts/out/ArcReceiptCheckout.sol/ArcReceiptCheckout.json'
+
+// ABI inlined so Vercel can build without Foundry installed.
+// Source: contracts/ArcReceiptCheckout.sol (compiled with forge build).
+// Do not edit manually — regenerate with: forge build && update from
+// contracts/out/ArcReceiptCheckout.sol/ArcReceiptCheckout.json
+const ABI_JSON = [{"type":"constructor","inputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"USDC","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},{"type":"function","name":"cancelRequest","inputs":[{"name":"id","type":"uint256","internalType":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"createRequest","inputs":[{"name":"amount","type":"uint256","internalType":"uint256"},{"name":"expiresAt","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"id","type":"uint256","internalType":"uint256"}],"stateMutability":"nonpayable"},{"type":"function","name":"getMerchantRequests","inputs":[{"name":"merchant","type":"address","internalType":"address"},{"name":"offset","type":"uint256","internalType":"uint256"},{"name":"limit","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"ids","type":"uint256[]","internalType":"uint256[]"},{"name":"total","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"getRequest","inputs":[{"name":"id","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"","type":"tuple","internalType":"struct ArcReceiptCheckout.Request","components":[{"name":"merchant","type":"address","internalType":"address"},{"name":"amount","type":"uint256","internalType":"uint256"},{"name":"expiresAt","type":"uint256","internalType":"uint256"},{"name":"status","type":"uint8","internalType":"enum ArcReceiptCheckout.RequestStatus"},{"name":"payer","type":"address","internalType":"address"},{"name":"paidAt","type":"uint256","internalType":"uint256"}]}],"stateMutability":"view"},{"type":"function","name":"pay","inputs":[{"name":"id","type":"uint256","internalType":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"requests","inputs":[{"name":"","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"merchant","type":"address","internalType":"address"},{"name":"amount","type":"uint256","internalType":"uint256"},{"name":"expiresAt","type":"uint256","internalType":"uint256"},{"name":"status","type":"uint8","internalType":"enum ArcReceiptCheckout.RequestStatus"},{"name":"payer","type":"address","internalType":"address"},{"name":"paidAt","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"event","name":"PaymentRecorded","inputs":[{"name":"id","type":"uint256","indexed":true,"internalType":"uint256"},{"name":"merchant","type":"address","indexed":true,"internalType":"address"},{"name":"payer","type":"address","indexed":true,"internalType":"address"},{"name":"amount","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"paidAt","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false},{"type":"event","name":"RequestCancelled","inputs":[{"name":"id","type":"uint256","indexed":true,"internalType":"uint256"},{"name":"merchant","type":"address","indexed":true,"internalType":"address"}],"anonymous":false},{"type":"event","name":"RequestCreated","inputs":[{"name":"id","type":"uint256","indexed":true,"internalType":"uint256"},{"name":"merchant","type":"address","indexed":true,"internalType":"address"},{"name":"amount","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"expiresAt","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false},{"type":"error","name":"ExpiryMustBeFuture","inputs":[]},{"type":"error","name":"ExpiryTooFar","inputs":[]},{"type":"error","name":"NotMerchant","inputs":[]},{"type":"error","name":"ReentrancyGuardReentrantCall","inputs":[]},{"type":"error","name":"RequestExpired","inputs":[]},{"type":"error","name":"RequestNotFound","inputs":[]},{"type":"error","name":"RequestNotOpen","inputs":[]},{"type":"error","name":"SafeERC20FailedOperation","inputs":[{"name":"token","type":"address","internalType":"address"}]},{"type":"error","name":"SelfPayment","inputs":[]},{"type":"error","name":"ZeroAmount","inputs":[]}] as const
 
 // ── Env-var readers with testnet defaults ─────────────────────────────────────
 
@@ -77,7 +82,7 @@ export const IS_TESTNET: boolean = CHAIN_ID !== 5042
 
 // ── ABI ───────────────────────────────────────────────────────────────────────
 
-export const CONTRACT_ABI = artifact.abi as Abi
+export const CONTRACT_ABI = ABI_JSON as Abi
 
 // ── Topic-0 derivation from ABI ───────────────────────────────────────────────
 
@@ -90,7 +95,7 @@ function topic0(sig: string): `0x${string}` {
 }
 
 function findEvent(name: string): AbiEvent {
-  const ev = (artifact.abi as Abi).find(
+  const ev = (ABI_JSON as Abi).find(
     (x): x is AbiEvent => x.type === 'event' && x.name === name
   )
   if (!ev) throw new Error(`Event ${name} not found in ABI`)
