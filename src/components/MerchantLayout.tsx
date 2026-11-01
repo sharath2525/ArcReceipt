@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { MerchantGate } from './MerchantGate'
 import { loadProfile } from '@/pages/merchant/MerchantSettingsPage'
+import { IS_TESTNET, NETWORK_LABEL, CHAIN_ID } from '@/lib/contract'
 
 const NAV_ITEMS = [
   { to: '/merchant',          label: 'Sell',     icon: <ShoppingBag size={16} />,   end: true },
@@ -54,10 +55,16 @@ export function MerchantLayout() {
   return (
     <MerchantGate>
       <div className="min-h-dvh bg-gradient-to-br from-slate-50 via-white to-emerald-50/20 flex flex-col">
-        {/* Testnet banner */}
-        <div className="w-full bg-amber-400 text-amber-900 text-center text-xs font-semibold py-1.5 px-4 tracking-wide shrink-0">
-          TESTNET — Arc Testnet (chain 5042002) — No real funds
-        </div>
+        {/* Network banner */}
+        {IS_TESTNET ? (
+          <div className="w-full bg-amber-400 text-amber-900 text-center text-xs font-semibold py-1.5 px-4 tracking-wide shrink-0">
+            ⚠ TESTNET — {NETWORK_LABEL} (chain {CHAIN_ID}) — No real funds
+          </div>
+        ) : (
+          <div className="w-full bg-emerald-600 text-white text-center text-xs font-semibold py-1.5 px-4 tracking-wide shrink-0">
+            {NETWORK_LABEL} (chain {CHAIN_ID})
+          </div>
+        )}
 
         <div className="flex flex-1 min-h-0">
           {/* Sidebar — hidden on mobile, visible md+ */}

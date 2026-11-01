@@ -32,6 +32,19 @@ Merchant creates USDC payment requests onchain → customer scans QR → pays wi
 
 Arc Studio wrote the Solidity source (`contracts/ArcReceiptCheckout.sol`) and deployed it to Arc Testnet during the initial session. The deployer wallet paid the gas — after that it has zero special rights. The contract has **no owner, no admin, no upgradeability**. Nobody — not you, not Arc Studio, not Circle — can pause, modify, or upgrade it. It runs exactly as deployed, forever.
 
+### Deployed instance (Arc Mainnet)
+
+| Field | Value |
+|-------|-------|
+| Contract address | `0x1dABA388EaC463C8C138f23f6D0aC0807d6b6e8C` |
+| Chain | Arc Mainnet (chain ID 5042) |
+| Deploy TX | `0xd877af355ba9012488063e1bb895776a849d2236f9c1ba64946f884b8f69ea3b` |
+| Deployed | 2026-11-01 |
+| Deployer | `0xFa7a9FA6f931a33A66DaDf17D10A10ab4b2a4C97` |
+| Explorer | https://explorer.arc.io/address/0x1dABA388EaC463C8C138f23f6D0aC0807d6b6e8C |
+| Deploy TX explorer | https://explorer.arc.io/tx/0xd877af355ba9012488063e1bb895776a849d2236f9c1ba64946f884b8f69ea3b |
+| USDC (hardcoded) | `0x3600000000000000000000000000000000000000` (6 decimals, Arc Mainnet) |
+
 ### Deployed instance (Arc Testnet)
 
 | Field | Value |
