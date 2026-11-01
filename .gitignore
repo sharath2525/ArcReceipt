@@ -33,3 +33,8 @@ Thumbs.db
 *.log
 /tmp/
 ArcReceipt/
+
+# Arc Studio internal files — not for public repo
+AGENTS.md
+console.jsonl
+traces.jsonl

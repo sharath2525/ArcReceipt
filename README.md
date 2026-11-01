@@ -6,7 +6,6 @@ Built with [Arc Studio](https://studio.arc.io)
 
 **Live app:** https://arc-mr.vercel.app
 **GitHub:** https://github.com/sharath2525/ArcReceipt
-**Arc Studio project:** https://studio.arc.io/app/47505b56-e0b1-4c96-99da-b4160c139301
 
 ---
 
